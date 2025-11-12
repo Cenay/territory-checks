@@ -21,7 +21,7 @@ This project processes incoming territory check emails from various consultant n
 ## Key Files
 
 - `docs/javascript-for-code-node.js` - Core email parsing logic
-- `archive/territory-check-workflow-FINAL.json` - Complete workflow JSON
+- `archive/territory-check-workflow-FINAL.json` - Complete workflow JSON (Please note, this failed despite multiple attempts to push the JSON to n8n)
 - `docs/*-json-from-gmail.json` - Sample email data for testing
 
 ## Current Workflow
