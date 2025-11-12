@@ -1,0 +1,42 @@
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Temporary files
+*.tmp
+*.log
+hold-values.txt
+
+# Environment files
+.env
+.env.local
+*.env
+
+# Node modules (if any)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Python (if any)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+
+# Backup files
+*.bak
+*.backup
+*~
+

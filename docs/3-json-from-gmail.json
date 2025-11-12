@@ -1,0 +1,69 @@
+[
+    {
+      "id": "19a5fd705d8e526a",
+      "threadId": "19a5fd705d8e526a",
+      "labelIds": [
+        "UNREAD",
+        "IMPORTANT",
+        "CATEGORY_PERSONAL",
+        "INBOX"
+      ],
+      "sizeEstimate": 7823,
+      "headers": {
+        "delivered-to": "Delivered-To: franchisetrfa@gmail.com",
+        "received": "Received: by mx.zohomail.com with SMTPS id 1762544511939828.9360657052878;\r\n\tFri, 7 Nov 2025 11:41:51 -0800 (PST)",
+        "x-google-smtp-source": "X-Google-Smtp-Source: AGHT+IH/SNrACVi6AYs9S+xrcmvvPo/7FXjQRbjKz/La6lazmGHAAZHN/1AqR+1y3CpA7Xr1JdK8",
+        "x-received": "X-Received: by 2002:a05:6830:1c65:b0:7aa:4e01:f57d with SMTP id 46e09a7af769-7c6fd811690mr186331a34.18.1762544518321;\r\n        Fri, 07 Nov 2025 11:41:58 -0800 (PST)",
+        "arc-seal": "ARC-Seal: i=1; a=rsa-sha256; t=1762544514; cv=none; \r\n\td=zohomail.com; s=zohoarc; \r\n\tb=MHAdEtdl9lrh3hu9e3yN9UaSw+bOgoAfS90lumuSjTlSNCb4vVs+sqfbKnmtFaRlS3qhMjA+ame3yeDu1FTYpt2991WtgybW8MYYPK5mGP+1XDFe6Q4wZnKsDReCxSOHG6NHeVTDsYcv+8QCgo+/65LT/LF1fReFl8kjugDyTno=",
+        "arc-message-signature": "ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=zohomail.com; s=zohoarc; \r\n\tt=1762544514; h=Content-Type:Content-Transfer-Encoding:Date:Date:From:From:In-Reply-To:MIME-Version:Message-ID:References:Subject:Subject:To:To:Message-Id:Reply-To:Cc; \r\n\tbh=4RRmYD9H4S6JqgmxVQMPwhpiPXHEjwOG9KmHeF3ZY28=; \r\n\tb=YahU3Ppi1yQ335f9G60mB8EL4xOghOy4lqKdcYQxVrPnsJQV6NB5CSEuxKBDSRqx/1MAkzwldvw3BHJZkVm9fShfnl0bW4V2Y3rmQ/UTLjB6mPBht9rPkGsCOBICza6bYw67Mh+OpVrmPuQmcI4umDDMmbwsnHwIZBfw53P5Eco=",
+        "arc-authentication-results": "ARC-Authentication-Results: i=1; mx.zohomail.com;\r\n\tdkim=pass  header.i=therealfoodacademy.com;\r\n\tspf=pass  smtp.mailfrom=franchise@therealfoodacademy.com;\r\n\tdmarc=pass header.from=<franchise@therealfoodacademy.com>",
+        "return-path": "Return-Path: <franchise@therealfoodacademy.com>",
+        "received-spf": "Received-SPF: pass (google.com: domain of franchise@therealfoodacademy.com designates 136.143.184.12 as permitted sender) client-ip=136.143.184.12;",
+        "authentication-results": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@therealfoodacademy.com header.s=default header.b=\"W/0EJCCH\";\r\n       arc=pass (i=1 spf=pass spfdomain=therealfoodacademy.com dkim=pass dkdomain=therealfoodacademy.com dmarc=pass fromdomain=therealfoodacademy.com>);\r\n       spf=pass (google.com: domain of franchise@therealfoodacademy.com designates 136.143.184.12 as permitted sender) smtp.mailfrom=franchise@therealfoodacademy.com;\r\n       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=therealfoodacademy.com",
+        "dkim-signature": "DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; t=1762544514;\r\n\ts=default; d=therealfoodacademy.com;\r\n\ti=franchise@therealfoodacademy.com;\r\n\th=Message-ID:Date:Date:MIME-Version:Subject:Subject:To:To:References:From:From:In-Reply-To:Content-Type:Content-Transfer-Encoding:Message-Id:Reply-To:Cc;\r\n\tbh=4RRmYD9H4S6JqgmxVQMPwhpiPXHEjwOG9KmHeF3ZY28=;\r\n\tb=W/0EJCCHffS/ncaI7Ucatw+ahBibqpD5jYaIA/ImtDnkU6H94r5StbT5WJput682\r\n\t9ObzqB8Nhv0jJ81ts1LyA3x+A7a7D1t9lNlZENSriPu6EEpWrNU8ChcFc6QHwdUEW9q\r\n\tv6HOHjU0NxTpCjZyND7MgLKtfXQvmWl+06fYDOC8=",
+        "message-id": "Message-ID: <f963ed61-0a7d-4d4a-b8c6-9abf2c6c73d9@therealfoodacademy.com>",
+        "date": "Date: Fri, 7 Nov 2025 14:41:51 -0500",
+        "mime-version": "MIME-Version: 1.0",
+        "user-agent": "User-Agent: Mozilla Thunderbird",
+        "subject": "Subject: =?UTF-8?Q?Fwd=3A_Territory_Check_=E2=80=93_San_Diego_or_San_Clement?=\r\n =?UTF-8?Q?e=2C_CA_-_The_Real_Food_Academy?=",
+        "to": "To: franchisetrfa@gmail.com",
+        "references": "References: <20251107193322.3e60cc8d94477465@site.theyounetwork.com>",
+        "from": "From: Arthur Cummins <franchise@therealfoodacademy.com>",
+        "in-reply-to": "In-Reply-To: <20251107193322.3e60cc8d94477465@site.theyounetwork.com>",
+        "x-forwarded-message-id": "X-Forwarded-Message-Id: <20251107193322.3e60cc8d94477465@site.theyounetwork.com>",
+        "content-type": "Content-Type: text/html; charset=UTF-8",
+        "content-transfer-encoding": "Content-Transfer-Encoding: 8bit",
+        "x-antivirus": "X-Antivirus: Avast (VPS 251107-8, 11/7/2025), Outbound message",
+        "x-antivirus-status": "X-Antivirus-Status: Clean",
+        "x-zohomailclient": "X-ZohoMailClient: External"
+      },
+      "html": "<HTML><BODY><BR><BR>-------- Forwarded Message --------<TABLE CELLPADDING=0 CELLSPACING=0 BORDER=0 class=\"moz-email-headers-table\"><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>Subject: </TH><TD>Territory Check – San Diego or San Clemente, CA - The Real Food Academy</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>Date: </TH><TD>Fri, 07 Nov 2025 19:33:22 +0000</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>From: </TH><TD>Site &lt;monty@theyounetwork.com&gt;</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>To: </TH><TD>franchise@therealfoodacademy.com</TD></TR></TABLE>\n<BR><BR><div style=\"padding:0 0 20px 0;\">Please check your records for Brandt Schmidt and Meredith Watt and register to Monty Smith at TYN</div><div style=\"padding:0 0 20px 0;\">I have a client living in SAN DIEGO, CA 92128 interested in finding a franchise opportunity in and around the San Diego or San Clemente, CA market. Could you please let me know what your availability is in this and the surrounding area?</div>  \n\n<div style=\"padding:0 0 20px 0;\">Thanks, and let me know if you have any questions.</div>\n\n<div style=\"padding:0 0 20px 0;\">Thanks, Monty Smith</div><div id=\"DAB4FAD8-2DD7-40BB-A1B8-4E2AA1F9FDF2\"><br /><table style=\"border-top: 1px solid #D3D4DE;\"><tr><td style=\"width: 55px; padding-top: 13px;\"><a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\" target=\"_blank\"><img src=\"https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif\" alt=\"\" width=\"46\" height=\"29\" style=\"width: 46px; height: 29px;\"/></a></td><td style=\"width: 470px; padding-top: 12px; color: #41424e; font-size: 13px; font-family: Arial, Helvetica, sans-serif; line-height: 18px;\">Virus-free.<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\" target=\"_blank\" style=\"color: #4453ea;\">www.avast.com</a></td></tr></table><a href=\"#DAB4FAD8-2DD7-40BB-A1B8-4E2AA1F9FDF2\" width=\"1\" height=\"1\"> </a></div>\n",
+      "text": "\n\n-------- Forwarded Message --------\n\nSubject: Territory Check – San Diego or San Clemente, CA - The Real Food\nAcademyDate: Fri, 07 Nov 2025 19:33:22 +0000From: Site\n<monty@theyounetwork.com>To: franchise@therealfoodacademy.com\n\n\n\nPlease check your records for Brandt Schmidt and Meredith Watt and register to\nMonty Smith at TYN\nI have a client living in SAN DIEGO, CA 92128 interested in finding a franchise\nopportunity in and around the San Diego or San Clemente, CA market. Could you\nplease let me know what your availability is in this and the surrounding area?\nThanks, and let me know if you have any questions.\nThanks, Monty Smith\n\n\n\n[https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif]https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com\n[https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient]",
+      "textAsHtml": "<p>-------- Forwarded Message --------</p><p>Subject: Territory Check &ndash; San Diego or San Clemente, CA - The Real Food<br/>AcademyDate: Fri, 07 Nov 2025 19:33:22 +0000From: Site<br/>&lt;<a href=\"mailto:monty@theyounetwork.com\">monty@theyounetwork.com</a>&gt;To: <a href=\"mailto:franchise@therealfoodacademy.com\">franchise@therealfoodacademy.com</a></p><p>Please check your records for Brandt Schmidt and Meredith Watt and register to<br/>Monty Smith at TYN<br/>I have a client living in SAN DIEGO, CA 92128 interested in finding a franchise<br/>opportunity in and around the San Diego or San Clemente, CA market. Could you<br/>please let me know what your availability is in this and the surrounding area?<br/>Thanks, and let me know if you have any questions.<br/>Thanks, Monty Smith</p><p>[<a href=\"https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif\">https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif</a>]<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com\">https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com</a><br/>[<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\">https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient</a>]</p>",
+      "subject": "Fwd: Territory Check – San Diego or San Clemente, CA - The Real Food Academy",
+      "references": "<20251107193322.3e60cc8d94477465@site.theyounetwork.com>",
+      "date": "2025-11-07T19:41:51.000Z",
+      "to": {
+        "value": [
+          {
+            "address": "franchisetrfa@gmail.com",
+            "name": ""
+          }
+        ],
+        "html": "<span class=\"mp_address_group\"><a href=\"mailto:franchisetrfa@gmail.com\" class=\"mp_address_email\">franchisetrfa@gmail.com</a></span>",
+        "text": "franchisetrfa@gmail.com"
+      },
+      "from": {
+        "value": [
+          {
+            "address": "franchise@therealfoodacademy.com",
+            "name": "Arthur Cummins"
+          }
+        ],
+        "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Arthur Cummins</span> &lt;<a href=\"mailto:franchise@therealfoodacademy.com\" class=\"mp_address_email\">franchise@therealfoodacademy.com</a>&gt;</span>",
+        "text": "\"Arthur Cummins\" <franchise@therealfoodacademy.com>"
+      },
+      "messageId": "<f963ed61-0a7d-4d4a-b8c6-9abf2c6c73d9@therealfoodacademy.com>",
+      "inReplyTo": "<20251107193322.3e60cc8d94477465@site.theyounetwork.com>"
+    }
+  ]

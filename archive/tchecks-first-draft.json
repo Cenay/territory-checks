@@ -1,0 +1,979 @@
+{
+  "name": "Franchise Territory Checks first draft - fail",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "986d8b58-38c0-4851-8951-01a75e75986d",
+      "name": "Gmail Trigger - New Franchise Inquiries",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1008,
+        208
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w4vtE8fEEGHrj6S2",
+          "name": "Gmail (FranchiseTRFA)"
+        }
+      },
+      "notes": "Monitors Gmail for new unread emails matching franchise inquiry keywords in subject line"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract required fields from email body and subject\nconst emailBody = $input.item.json.textPlain || $input.item.json.textHtml || '';\nconst emailSubject = $input.item.json.subject || '';\nconst fullText = emailSubject + '\\n' + emailBody;\n\n// Helper function to extract field with multiple patterns\nfunction extractField(text, patterns) {\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) {\n      return match[1].trim();\n    }\n  }\n  return null;\n}\n\n// Extract Network\nconst networkPatterns = [\n  /Network[:\\s]+([A-Z]+)/i,\n  /\\b(IFPG|FBA|FranServe|TYN)\\b/i,\n  /from[:\\s]+([A-Z]+)\\s+network/i,\n  /consultant\\s+from[:\\s]+([A-Z]+)/i\n];\nconst network = extractField(fullText, networkPatterns);\n\n// Extract Consultant Name\nconst consultantPatterns = [\n  /Consultant[:\\s]+([A-Za-z\\s]+?)(?:\\n|$|,)/i,\n  /from[:\\s]+([A-Za-z\\s]+?)(?:\\n|<|$)/i,\n  /\\bConsultant:\\s*([A-Za-z\\s]+)/i,\n  /Referred\\s+by[:\\s]+([A-Za-z\\s]+)/i\n];\nconst consultantName = extractField(fullText, consultantPatterns);\n\n// Extract Prospect Name\nconst prospectPatterns = [\n  /Prospect[:\\s]+([A-Za-z\\s]+?)(?:\\n|$|,)/i,\n  /Candidate[:\\s]+([A-Za-z\\s]+?)(?:\\n|$|,)/i,\n  /Client[:\\s]+([A-Za-z\\s]+?)(?:\\n|$|,)/i,\n  /Name[:\\s]+([A-Za-z\\s]+?)(?:\\n|$|,)/i\n];\nconst prospectName = extractField(fullText, prospectPatterns);\n\n// Extract City\nconst cityPatterns = [\n  /City[:\\s]+([A-Za-z\\s]+?)(?:,|\\n|$)/i,\n  /Location[:\\s]+([A-Za-z\\s]+?),/i,\n  /in\\s+([A-Za-z\\s]+?),\\s*[A-Z]{2}/i,\n  /([A-Za-z\\s]+),\\s*[A-Z]{2}\\s*(?:area|location|territory)?/i\n];\nconst city = extractField(fullText, cityPatterns);\n\n// Extract State (2-letter code or full name)\nconst statePatterns = [\n  /State[:\\s]+([A-Z]{2})\\b/i,\n  /State[:\\s]+([A-Za-z]+)\\b/i,\n  /,\\s*([A-Z]{2})\\s*(?:area|location|territory|$)/i,\n  /,\\s*([A-Z]{2})\\b/\n];\nconst state = extractField(fullText, statePatterns);\n\n// Check if all required fields are present\nconst requiredFields = {\n  network,\n  consultantName,\n  prospectName,\n  city,\n  state\n};\n\nconst missingFields = [];\nfor (const [field, value] of Object.entries(requiredFields)) {\n  if (!value || value.length < 2) {\n    missingFields.push(field);\n  }\n}\n\nreturn {\n  json: {\n    // Original email data\n    emailId: $input.item.json.id,\n    emailSubject: emailSubject,\n    emailBody: emailBody,\n    emailFrom: $input.item.json.from,\n    emailDate: $input.item.json.date,\n    \n    // Extracted fields\n    network: network || 'UNKNOWN',\n    consultantName: consultantName || 'UNKNOWN',\n    prospectName: prospectName || 'UNKNOWN',\n    city: city || 'UNKNOWN',\n    state: state || 'UNKNOWN',\n    \n    // Validation status\n    allFieldsValid: missingFields.length === 0,\n    missingFields: missingFields,\n    errorNotes: missingFields.length > 0 \n      ? `Missing or ambiguous fields: ${missingFields.join(', ')}`\n      : null\n  }\n};"
+      },
+      "id": "4215a954-d049-41d1-a879-157e5b4501b0",
+      "name": "Parse Email - Extract Fields",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        208
+      ],
+      "notes": "Extracts Network, Consultant Name, Prospect Name, City, State from email using regex patterns. Handles multiple format variations."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.allFieldsValid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "f719a9e7-b17c-4d65-a082-448f3bd29d69",
+      "name": "IF: All Required Fields Present?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -608,
+        208
+      ],
+      "notes": "Checks if all required fields were successfully extracted. Routes to error handler if any fields are missing."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Placeholder territory lookup logic\n// TODO: Replace with actual API call or database query\n\nconst city = $input.item.json.city;\nconst state = $input.item.json.state;\n\n// Hardcoded example territories (replace with real lookup)\nconst unavailableTerritories = [\n  { city: 'Miami', state: 'FL' },\n  { city: 'Orlando', state: 'FL' },\n  { city: 'Los Angeles', state: 'CA' },\n  { city: 'San Francisco', state: 'CA' },\n  { city: 'New York', state: 'NY' }\n];\n\n// Check if territory is unavailable\nconst isUnavailable = unavailableTerritories.some(\n  t => t.city.toLowerCase() === city.toLowerCase() && \n       t.state.toUpperCase() === state.toUpperCase()\n);\n\nconst territoryAvailable = !isUnavailable;\n\nreturn {\n  json: {\n    ...$input.item.json,\n    territoryAvailable,\n    lookupStatus: 'completed',\n    lookupMethod: 'placeholder-hardcoded'\n  }\n};"
+      },
+      "id": "bbf79b5c-1a70-45bb-b1c1-f53c5418ff37",
+      "name": "Territory Lookup - Placeholder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        112
+      ],
+      "notes": "PLACEHOLDER: Hardcoded territory availability check. Replace with actual API/database lookup logic."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.territoryAvailable }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "87b209f0-0bbb-46ea-9833-e29ac9aa34dc",
+      "name": "IF: Territory Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        112
+      ],
+      "notes": "Routes workflow based on territory availability. YES branch sends approval, NO branch sends rejection and logs to AirTable."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailFrom }}",
+        "subject": "=RE: {{ $json.emailSubject }}",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n  <p>Dear {{ $json.consultantName }},</p>\n  \n  <p>Thank you for your inquiry regarding franchise availability in <strong>{{ $json.city }}, {{ $json.state }}</strong> for your candidate <strong>{{ $json.prospectName }}</strong>.</p>\n  \n  <p style=\"background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;\">\n    <strong style=\"color: #155724;\">✓ Good news!</strong><br/>\n    We are pleased to inform you that <strong>this territory is currently available</strong> for franchise development.\n  </p>\n  \n  <p>We would be happy to discuss this opportunity further with your candidate. Please provide us with:</p>\n  <ul>\n    <li>Candidate's contact information (phone and email)</li>\n    <li>Best times for an introductory call</li>\n    <li>Any preliminary questions they may have</li>\n  </ul>\n  \n  <p>Our franchise development team will reach out within 1-2 business days to begin the discovery process.</p>\n  \n  <p>Best regards,</p>\n  <p><strong>The Real Food Academy</strong><br/>\n  Franchise Development Team</p>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "497e7248-5649-4f05-b95c-157471c0e8ac",
+      "name": "Gmail Send - YES Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "0515fb40-f919-4a4e-a3bc-723aea5bfaaf",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Sends professional 'YES' response when territory is available"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailFrom }}",
+        "subject": "=RE: {{ $json.emailSubject }}",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n  <p>Dear {{ $json.consultantName }},</p>\n  \n  <p>Thank you for your inquiry regarding franchise availability in <strong>{{ $json.city }}, {{ $json.state }}</strong> for your candidate <strong>{{ $json.prospectName }}</strong>.</p>\n  \n  <p style=\"background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;\">\n    <strong style=\"color: #721c24;\">Territory Status:</strong><br/>\n    Unfortunately, <strong>this territory is not currently available</strong> for new franchise development.\n  </p>\n  \n  <p>We appreciate your interest in The Real Food Academy. While this specific location is not available, we may have opportunities in nearby territories that could interest your candidate.</p>\n  \n  <p>If your candidate is open to exploring alternative locations within the region, please let us know and we'll be happy to provide information on available territories.</p>\n  \n  <p>We will keep your inquiry on file and notify you if the situation changes in this market.</p>\n  \n  <p>Best regards,</p>\n  <p><strong>The Real Food Academy</strong><br/>\n  Franchise Development Team</p>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "a6c4c19b-4e93-4d79-9e0e-473cecfbb679",
+      "name": "Gmail Send - NO Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        192
+      ],
+      "webhookId": "734fddc7-529e-42a2-a77c-5813dab00e6f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Sends professional 'NO' response when territory is unavailable"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblhT9L9aA9IiqJVE",
+          "mode": "list",
+          "cachedResultName": "Franchise_Inquiries",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblhT9L9aA9IiqJVE"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Network",
+              "displayName": "Network",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "IFPG",
+                  "value": "IFPG"
+                },
+                {
+                  "name": "FBA",
+                  "value": "FBA"
+                },
+                {
+                  "name": "FranServe",
+                  "value": "FranServe"
+                },
+                {
+                  "name": "TYN",
+                  "value": "TYN"
+                },
+                {
+                  "name": "MFE",
+                  "value": "MFE"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Consultant",
+              "displayName": "Consultant",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prospect",
+              "displayName": "Prospect",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Subject",
+              "displayName": "Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Body",
+              "displayName": "Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reply_Status",
+              "displayName": "Reply_Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status_Notes",
+              "displayName": "Status_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Territory",
+              "displayName": "Territory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available (from Territory)",
+              "displayName": "Available (from Territory)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "e9c9ace7-ae94-456a-8597-158d8d6762e9",
+      "name": "AirTable - Log NO Response",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        224,
+        192
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs inquiry details to AirTable when territory is unavailable. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_ZZZZZZZZ"
+        ]
+      },
+      "id": "d7fe08e0-e325-450b-af9c-59aa1b2df891",
+      "name": "Gmail Label - Manual Review Required",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -400,
+        304
+      ],
+      "webhookId": "0c18a0ce-951c-4164-839b-ca632f7c4c26",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Flags email for manual review when required fields are missing or ambiguous. IMPORTANT: Create label in Gmail and replace Label_ZZZZZZZZ with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblt8dOHOqnzXEvLY",
+          "mode": "list",
+          "cachedResultName": "Territories",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblt8dOHOqnzXEvLY"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Available": false,
+            "Remaining": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "State_Name",
+              "displayName": "State_Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State_Abbrev",
+              "displayName": "State_Abbrev",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available",
+              "displayName": "Available",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Remaining",
+              "displayName": "Remaining",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "fc0e3b34-30cd-45f1-a42b-db1e0c69ffcd",
+      "name": "AirTable - Log Error/Manual Review",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        -192,
+        304
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs emails with missing fields to AirTable for tracking and manual processing. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_XXXXXXXX"
+        ]
+      },
+      "id": "a37cded3-5e95-494f-86ce-b52d02a31878",
+      "name": "Label - Processed-Yes",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        0
+      ],
+      "webhookId": "ea9f0500-d070-4d82-a3ac-f8aa36a3d47c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Marks email as processed with 'Processed-Yes' label for deduplication. IMPORTANT: Create label in Gmail and replace Label_XXXXXXXX with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_YYYYYYYY"
+        ]
+      },
+      "id": "112a0292-6513-45af-ac0a-9fd2e454fbe5",
+      "name": "Label - Processed-No",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        192
+      ],
+      "webhookId": "b3d09e73-3036-47bd-b010-b2ca6680ae99",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Marks email as processed with 'Processed-No' label for deduplication. IMPORTANT: Create label in Gmail and replace Label_YYYYYYYY with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblhT9L9aA9IiqJVE",
+          "mode": "list",
+          "cachedResultName": "Franchise_Inquiries",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblhT9L9aA9IiqJVE"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Network",
+              "displayName": "Network",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "IFPG",
+                  "value": "IFPG"
+                },
+                {
+                  "name": "FBA",
+                  "value": "FBA"
+                },
+                {
+                  "name": "FranServe",
+                  "value": "FranServe"
+                },
+                {
+                  "name": "TYN",
+                  "value": "TYN"
+                },
+                {
+                  "name": "MFE",
+                  "value": "MFE"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Consultant",
+              "displayName": "Consultant",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prospect",
+              "displayName": "Prospect",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Subject",
+              "displayName": "Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Body",
+              "displayName": "Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reply_Status",
+              "displayName": "Reply_Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status_Notes",
+              "displayName": "Status_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Territory",
+              "displayName": "Territory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available (from Territory)",
+              "displayName": "Available (from Territory)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "503bf07b-d222-4888-a4e6-e16eac37bd87",
+      "name": "AirTable - Log YES Response",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs inquiry details to AirTable when territory is unavailable. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    }
+  ],
+  "pinData": {
+    "Gmail Trigger - New Franchise Inquiries": [
+      {
+        "json": {
+          "id": "19a2ec7ba61bb524",
+          "threadId": "19a2ec7ba61bb524",
+          "labelIds": [
+            "UNREAD",
+            "IMPORTANT",
+            "CATEGORY_PERSONAL",
+            "INBOX"
+          ],
+          "sizeEstimate": 9226,
+          "headers": {
+            "delivered-to": "Delivered-To: franchisetrfa@gmail.com",
+            "received": "Received: from [192.168.1.136] ([98.97.112.48])\r\n        by smtp.gmail.com with ESMTPSA id 5614622812f47-44da3e793c5sm3158220b6e.13.2025.10.29.00.03.48\r\n        for <franchisetrfa@gmail.com>\r\n        (version=TLS1_3 cipher=TLS_AES_128_GCM_SHA256 bits=128/128);\r\n        Wed, 29 Oct 2025 00:03:50 -0700 (PDT)",
+            "x-received": "X-Received: by 2002:a05:6808:1808:b0:43d:1eec:aea7 with SMTP id 5614622812f47-44f7a550cabmr981393b6e.45.1761721431588;\r\n        Wed, 29 Oct 2025 00:03:51 -0700 (PDT)",
+            "arc-seal": "ARC-Seal: i=1; a=rsa-sha256; t=1761721432; cv=none;\r\n        d=google.com; s=arc-20240605;\r\n        b=gvC0F+bbFoS3UQVTyfn9HhMSiMDGu2+1JmJXifFcFVNtYAPR1410/tpDc9D+ANeJxq\r\n         qJOsUiisSHAzVLfwoa4I3tl3VjtyvIvcBq/SoAGgcd/2fRJJ9Ott8Gl+29GCSPZY7+81\r\n         024ecpV6yZHT+h+yM7u7p1w3UGnIP8CVPD9HbECT9edEvYYrSo7ZVoHLTbfUsF1h7qHl\r\n         EP5NPMEl6zIFecnXGwGHWFNpKx8thkOVi90sCnNRW1ZFfkD3Qr5M1EPhivvB4y9RgrhI\r\n         Dr1oa7goz6Q/REiegpiuQKOSam2DaqRwPV8sZSISZZfYGEuKoPyuNunZA068fTy0YZiM\r\n         l8qA==",
+            "arc-message-signature": "ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20240605;\r\n        h=in-reply-to:from:to:references:content-language:subject:user-agent\r\n         :mime-version:date:message-id:dkim-signature;\r\n        bh=tfsmMpc4Z+VXDCz7WfAp/ukVjrOq/7PoIytmVPw9U0Y=;\r\n        fh=LZ7+s9KR6RH0N7Ldc0KgmIDZdHJpJf+yYqaEfZYCf58=;\r\n        b=JgpN8dyguiNxLoPf79juPYBakIpDxKciFe9RFSFStINT6nK8f0Clowk/bzGgzIuazn\r\n         SWxshtCDQljyJVp/LaKQIohm2h54VyiN1I1Dv30WRezf5wYkw3x4DZ/yulBlfNL5aG7q\r\n         se7eHTUhKiaAFlKQjtLIi4BPpT1QJM/SVF4a5S3V/6nlQjm7O04umCeZ3zC0J70Rmq0/\r\n         OCQ2FZk1aTz7FlY68xfuE8mB3MzYJ1C10MUOs63XxRxPn09YQYIiAx4SwcNkZv2PBDPH\r\n         +sXnU2F/zodtHZZ3dCZoJGZwNNTnMKxLqCLLEFkX+q2ur+6XSk/tMVQalVYtN0JEGrvp\r\n         FlWw==;\r\n        dara=google.com",
+            "arc-authentication-results": "ARC-Authentication-Results: i=1; mx.google.com;\r\n       dkim=pass header.i=@cenaynailor.com header.s=google header.b=T3TXAox5;\r\n       spf=pass (google.com: domain of cenay@cenaynailor.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=cenay@cenaynailor.com;\r\n       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cenaynailor.com;\r\n       dara=pass header.i=@gmail.com",
+            "return-path": "Return-Path: <cenay@cenaynailor.com>",
+            "received-spf": "Received-SPF: pass (google.com: domain of cenay@cenaynailor.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;",
+            "authentication-results": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@cenaynailor.com header.s=google header.b=T3TXAox5;\r\n       spf=pass (google.com: domain of cenay@cenaynailor.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=cenay@cenaynailor.com;\r\n       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cenaynailor.com;\r\n       dara=pass header.i=@gmail.com",
+            "dkim-signature": "DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=cenaynailor.com; s=google; t=1761721432; x=1762326232; dara=google.com;\r\n        h=in-reply-to:from:to:references:content-language:subject:user-agent\r\n         :mime-version:date:message-id:from:to:cc:subject:date:message-id\r\n         :reply-to;\r\n        bh=tfsmMpc4Z+VXDCz7WfAp/ukVjrOq/7PoIytmVPw9U0Y=;\r\n        b=T3TXAox5dO/8dlYBhlYa03g1GPImTPf6JcYUnNpBB3sSoh2h3s2cF5QVFpWykfBZy3\r\n         ozDnaHSqzD/wv0GwmK0ZhUdP3O4rmdJzX2T+eGGbu96LYk7kGofMyEP81zzM4xuOka8+\r\n         KD3hciKse2DAwhMI4UMdgce5tOPHLloySp4CpYLKwODlfWMAK2MlgvZ7PGr555GI72yT\r\n         GxrsLw5l38qFU0fGPWowk6Hk3FLTfXCeAi5lYCAS7W+qe8rNMP5JWIz+ubNbbElpom0V\r\n         DitcmpI3JOR/Yrx5egHT0fu5uk3SYVsc5nYhGpOIDZFfo/KPLxxQ4tPRjI2BDXTXFc4u\r\n         /YsQ==",
+            "x-google-dkim-signature": "X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;\r\n        d=1e100.net; s=20230601; t=1761721432; x=1762326232;\r\n        h=in-reply-to:from:to:references:content-language:subject:user-agent\r\n         :mime-version:date:message-id:x-gm-message-state:from:to:cc:subject\r\n         :date:message-id:reply-to;\r\n        bh=tfsmMpc4Z+VXDCz7WfAp/ukVjrOq/7PoIytmVPw9U0Y=;\r\n        b=rObtqApsKoaH/a6g8Y1/EkYokWw2aKynhadd/sjrhP0e8BgntajKvSiNBkIKFDrlcL\r\n         IwAtfhvjhRCrfCajZHQYMWddejp5u0tzefYT5YfzpNIxqNQbxYsrtge2QQinJ1BN0IfM\r\n         bI4ERWUVfXiQCXKNqzmusIIKGnUsLjrmdYd34xiVJ9hEN0yPglBDF8GH/Rj2vjyILQ+g\r\n         vc3nc8h3ZVAjyMywyKJhHI5LYIrqiTIqvTLJl6df6owgOSZn2lKLsoq7CIKAUoG9eSP/\r\n         sWSoOzSVacFOWIIyI3fJki1AhiLqv7j4BL4HL8X27ZiBfy5i3Ru0BnTixvv7BnR2O9Y6\r\n         aU0w==",
+            "x-gm-message-state": "X-Gm-Message-State: AOJu0YyxGyo5kVLRn7dfhDp3RrSTSwjvV9pzhdM4egUp1voEYFxaTP8s\r\n\twXiTiYgJkf44gdKbqxClDsm3M/nUf+OfVYquVm0umNYb7TyY3mybiNOFP+VKjrIEKebje/2TZ/b\r\n\tadsaZ",
+            "x-gm-gg": "X-Gm-Gg: ASbGncuDBdm+FfBNXa2UDaijKNrszpdIIN959htiw/aminTOaKmxzVBL2K4FCs2M2HU\r\n\tKdO8l6SuZtfZOAwElAj5cKMfNMdHzgWGDCEOm4E5eEgOmwnvI5rrz6T6M05Q9qOTrGCiUCKhBrh\r\n\tN5JInDpNy/6lxaBB2W9rhG5CzBre+Xd4N/79ueRCZQFVldE62EayQQ5o77ie4qayOxuaqgQnrtC\r\n\tCTtANae2id1Vn78u9eG/7S2uP+J18m3Wzm162u95CSAhnLj371ch4L/aBoxoxYjo7QN/XstoLfV\r\n\tgw0UoP2JHT9wnVLGDpK8srgLYIjQnwjfHbzt8jzTtTFZlYj8O4QRcNz0hiCoBhJP5sPm+hIQ1zL\r\n\t58rGPYAH7tN2fqlPXTYULXNfOkcerJZZT54RACVMccb3CfzEFkY9IZNFQ4GP5vlumVvc+lb2GZA\r\n\t3BBK6mMi/n9ktGYdmZrUjJ4Axbe3fpalKijamUqUjUvajysOygepg47mnceX567w==",
+            "x-google-smtp-source": "X-Google-Smtp-Source: AGHT+IEIeG+vN9jf0Wjs9MDH/nxJFv6RIlQK3puxa22fa56GnnLNTpBOofCNbWsumcEsZWchdQ/Tyw==",
+            "content-type": "Content-Type: multipart/alternative;\r\n boundary=\"------------0f6nK5gSgUY0fJOrEdGYXofA\"",
+            "message-id": "Message-ID: <a1a2fcdc-3065-40f6-9814-b7e912f95289@cenaynailor.com>",
+            "date": "Date: Wed, 29 Oct 2025 00:03:47 -0700",
+            "mime-version": "MIME-Version: 1.0",
+            "user-agent": "User-Agent: Mozilla Thunderbird",
+            "subject": "Subject: Territory Check from FranServe Consultant Jason Blough",
+            "content-language": "Content-Language: en-US",
+            "references": "References: <a0909ef9-52a8-432b-a667-790f0596e955@therealfoodacademy.com>",
+            "to": "To: FranDev TRFA <franchisetrfa@gmail.com>",
+            "from": "From: Cenay Nailor <cenay@cenaynailor.com>",
+            "in-reply-to": "In-Reply-To: <a0909ef9-52a8-432b-a667-790f0596e955@therealfoodacademy.com>",
+            "x-forwarded-message-id": "X-Forwarded-Message-Id: <a0909ef9-52a8-432b-a667-790f0596e955@therealfoodacademy.com>"
+          },
+          "html": "<!DOCTYPE html>\n<html>\n  <head>\n\n    <meta http-equiv=\"content-type\" content=\"text/html; charset=UTF-8\">\n  </head>\n  <body text=\"#000000\" bgcolor=\"#FFFFFF\">\n    <div class=\"moz-forward-container\">\n      <div class=\"moz-forward-container\"><br>\n        PLEASE DO NOT RESPOND TO THIS EMAIL DIRECTLY!<br>\n        <br>\n        <a\nhref=\"https://www.franservesupport.com/franchisors/tc.asp?FranchiseID=4038&amp;ClientID=897965&amp;BrokerID=1106\"\n          moz-do-not-send=\"true\">Click here to Respond to This Territory\n          Check</a><br>\n        <br>\n        A FranServe consultant has submitted a territory check for The\n        Real Food Academy. Please use the link above to let us know if\n        the following territory is currently available.<br>\n        <br>\n        Date Submitted: 10/21/2025<br>\n        <br>\n        Referring Consultant: Jason Blough<br>\n        Consultant Phone: (240) 446-6413<br>\n        Consultant Email: <a\n          class=\"moz-txt-link-abbreviated moz-txt-link-freetext\"\n          href=\"mailto:jason@franchisesp.com\" moz-do-not-send=\"true\">jason@franchisesp.com</a><br>\n        <br>\n        Desired Territory: Austin, San Antonio or in between<br>\n        <br>\n        ----------------------------------------------------------<br>\n        <br>\n        Prospect: John &amp; Tina Crank<br>\n        <br>\n        Prospect Email: <a\n          class=\"moz-txt-link-abbreviated moz-txt-link-freetext\"\n          href=\"mailto:johnpcrank@gmail.com\" moz-do-not-send=\"true\">johnpcrank@gmail.com</a><br>\n        <br>\n        ----------------------------------------------------------<br>\n        <br>\n      </div>\n    </div>\n  </body>\n</html>\n",
+          "text": "\nPLEASE DO NOT RESPOND TO THIS EMAIL DIRECTLY!\n\nClick here to Respond to This Territory Check <https://www.franservesupport.com/franchisors/tc.asp?FranchiseID=4038&ClientID=897965&BrokerID=1106>\n\nA FranServe consultant has submitted a territory check for The Real Food Academy. Please use the link above to let us know if the following territory is currently available.\n\nDate Submitted: 10/21/2025\n\nReferring Consultant: Jason Blough\nConsultant Phone: (240) 446-6413\nConsultant Email: jason@franchisesp.com\n\nDesired Territory: Austin, San Antonio or in between\n\n----------------------------------------------------------\n\nProspect: John & Tina Crank\n\nProspect Email: johnpcrank@gmail.com\n\n----------------------------------------------------------\n",
+          "textAsHtml": "<p>PLEASE DO NOT RESPOND TO THIS EMAIL DIRECTLY!</p><p>Click here to Respond to This Territory Check &lt;<a href=\"https://www.franservesupport.com/franchisors/tc.asp?FranchiseID=4038&ClientID=897965&BrokerID=1106\">https://www.franservesupport.com/franchisors/tc.asp?FranchiseID=4038&ClientID=897965&BrokerID=1106</a>&gt;</p><p>A FranServe consultant has submitted a territory check for The Real Food Academy. Please use the link above to let us know if the following territory is currently available.</p><p>Date Submitted: 10/21/2025</p><p>Referring Consultant: Jason Blough<br/>Consultant Phone: (240) 446-6413<br/>Consultant Email: <a href=\"mailto:jason@franchisesp.com\">jason@franchisesp.com</a></p><p>Desired Territory: Austin, San Antonio or in between</p><p>----------------------------------------------------------</p><p>Prospect: John &amp; Tina Crank</p><p>Prospect Email: <a href=\"mailto:johnpcrank@gmail.com\">johnpcrank@gmail.com</a></p><p>----------------------------------------------------------</p>",
+          "subject": "Territory Check from FranServe Consultant Jason Blough",
+          "references": "<a0909ef9-52a8-432b-a667-790f0596e955@therealfoodacademy.com>",
+          "date": "2025-10-29T07:03:47.000Z",
+          "to": {
+            "value": [
+              {
+                "address": "franchisetrfa@gmail.com",
+                "name": "FranDev TRFA"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">FranDev TRFA</span> &lt;<a href=\"mailto:franchisetrfa@gmail.com\" class=\"mp_address_email\">franchisetrfa@gmail.com</a>&gt;</span>",
+            "text": "\"FranDev TRFA\" <franchisetrfa@gmail.com>"
+          },
+          "from": {
+            "value": [
+              {
+                "address": "cenay@cenaynailor.com",
+                "name": "Cenay Nailor"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Cenay Nailor</span> &lt;<a href=\"mailto:cenay@cenaynailor.com\" class=\"mp_address_email\">cenay@cenaynailor.com</a>&gt;</span>",
+            "text": "\"Cenay Nailor\" <cenay@cenaynailor.com>"
+          },
+          "messageId": "<a1a2fcdc-3065-40f6-9814-b7e912f95289@cenaynailor.com>",
+          "inReplyTo": "<a0909ef9-52a8-432b-a667-790f0596e955@therealfoodacademy.com>"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Gmail Trigger - New Franchise Inquiries": {
+      "main": [
+        [
+          {
+            "node": "Parse Email - Extract Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Email - Extract Fields": {
+      "main": [
+        [
+          {
+            "node": "IF: All Required Fields Present?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: All Required Fields Present?": {
+      "main": [
+        [
+          {
+            "node": "Territory Lookup - Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail Label - Manual Review Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Territory Lookup - Placeholder": {
+      "main": [
+        [
+          {
+            "node": "IF: Territory Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Territory Available?": {
+      "main": [
+        [
+          {
+            "node": "Gmail Send - YES Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail Send - NO Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Send - YES Reply": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log YES Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Send - NO Reply": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log NO Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AirTable - Log NO Response": {
+      "main": [
+        [
+          {
+            "node": "Label - Processed-No",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Label - Manual Review Required": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log Error/Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AirTable - Log YES Response": {
+      "main": [
+        [
+          {
+            "node": "Label - Processed-Yes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a92f8d77-4d66-43bf-9afb-e1fca91e432e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4a3618b1d61ff75e14c32f7cb70d6f38993326100da48466d26b149497c437dd"
+  },
+  "id": "897Dj4x5YjYZAVwA",
+  "tags": [
+    {
+      "updatedAt": "2025-05-21T00:25:57.786Z",
+      "createdAt": "2025-05-21T00:25:57.786Z",
+      "id": "5hcZ7EUmra3ehA5v",
+      "name": "TRFA"
+    }
+  ]
+}

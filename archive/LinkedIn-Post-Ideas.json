@@ -1,0 +1,346 @@
+{
+  "name": "LinkedIn Post Ideas In Notion (From Google Drive)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1Z9UsaDOpIBkWFvWV4LzzxLqR9UQZHClu",
+          "mode": "list",
+          "cachedResultName": "LinkedIn Ideas",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1Z9UsaDOpIBkWFvWV4LzzxLqR9UQZHClu"
+        },
+        "event": "fileCreated",
+        "options": {
+          "fileType": "all"
+        }
+      },
+      "id": "302c6e9c-10d6-4354-96d3-af4aaff8e604",
+      "name": "Google Drive Trigger",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "position": [
+        64,
+        208
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pmFPcfKhyRbVmB7P",
+          "name": "Google Drive (TRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data",
+          "fileName": "={{ $json.originalFilename }}"
+        }
+      },
+      "id": "2c355def-a97d-41e2-8b9a-df6884b2bff9",
+      "name": "Google Drive",
+      "type": "n8n-nodes-base.googleDrive",
+      "position": [
+        304,
+        208
+      ],
+      "typeVersion": 3,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "pmFPcfKhyRbVmB7P",
+          "name": "Google Drive (TRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "id": "110c8181-ea33-4dc2-9177-be79de7170e4",
+      "name": "OpenAI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "position": [
+        560,
+        208
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "openAiApi": {
+          "id": "eIBbAwYBZjBAmeRb",
+          "name": "OpenAI (TRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Trigger and Download of audio file\n\nIn this example I'm using Google Drive. \nAs soon as a audio file is uploaded the trigger will start and download the audio file. ",
+        "height": 425.9351190986499,
+        "width": 459.0695038476583
+      },
+      "id": "14aea67c-22b3-4b63-aa0e-4248341d8eba",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        0,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Send to OpenAI for Transcription and Summary\n\nAfter we have the file, we send it to OpenAI for transciption and sending that transcipt to OpenAI to get a summary and some additional information",
+        "height": 420.4856289531857,
+        "width": 516.8340993895782,
+        "color": 4
+      },
+      "id": "01bd64b5-226f-4214-bde3-29de692e0c89",
+      "name": "Sticky Note1",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        528,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Sending to Notion\n\nWe now send the summary to a new Notion page.",
+        "height": 412,
+        "width": 371
+      },
+      "id": "fd98614a-7338-466c-9487-92917e936b6e",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1104,
+        0
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "1c8c18c8-5d37-8014-b210-d47436a131c2",
+          "mode": "list",
+          "cachedResultName": "LinkedIn Post Ideas",
+          "cachedResultUrl": "https://www.notion.so/1c8c18c85d378014b210d47436a131c2"
+        },
+        "title": "={{ $json.message.content.Title }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Name|title",
+              "title": "={{ $json.message.content['Page name'] }}"
+            },
+            {
+              "key": "Title|rich_text",
+              "textContent": "={{ $json.message.content.Title }}"
+            },
+            {
+              "key": "Idea Date|date",
+              "date": "={{ $json.message.content['Idea Date'] }}",
+              "timezone": "America/New_York"
+            },
+            {
+              "key": "CTA|rich_text",
+              "textContent": "={{ $json.message.content.CTA }}"
+            },
+            {
+              "key": "Content|rich_text",
+              "textContent": "={{ $json.message.content['Text Content'] }}"
+            },
+            {
+              "key": "Post Suggestion|rich_text",
+              "textContent": "={{ $json.message.content['Post Suggestion'] }}"
+            },
+            {
+              "key": "Format|select",
+              "selectValue": "={{ $json.message.content.Format }}"
+            },
+            {
+              "key": "Theme|select",
+              "selectValue": "={{ $json.message.content.Theme }}"
+            },
+            {
+              "key": "Hashtags|rich_text",
+              "textContent": "={{ $json.message.content.Hashtags.join(\", \") }}"
+            }
+          ]
+        },
+        "blockUi": {
+          "blockValues": [
+            {
+              "type": "heading_3",
+              "textContent": "Post Content"
+            },
+            {
+              "textContent": "=Context for the text portion of the post. Should include any formatting or emoji’s. \n\nThe Suggestion: \n{{ $json.message.content['Post Suggestion'] }}"
+            },
+            {},
+            {
+              "type": "heading_3",
+              "textContent": "Instructions"
+            },
+            {
+              "textContent": "Any additional instructions suggested for creating the asset."
+            },
+            {},
+            {
+              "type": "heading_3",
+              "textContent": "Hashtags"
+            },
+            {
+              "textContent": "=Insert the hashtags to be used for this post here for safe keeping.|\n\n{{ $json.message.content.Hashtags[0] }},{{ $json.message.content.Hashtags[1] }}, {{ $json.message.content.Hashtags[2] }}, {{ $json.message.content.Hashtags[3] }}"
+            },
+            {},
+            {
+              "type": "heading_3",
+              "textContent": "Image Prompt"
+            },
+            {
+              "textContent": "=The suggested image prompt that will be used for the initial image (if applicable). Feel free to adjust.\n\n{{ $json.message.content['Image Prompt'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        1232,
+        208
+      ],
+      "id": "abeef7b7-3c2b-423f-bd97-66a03a92f777",
+      "name": "Append To Notion",
+      "credentials": {
+        "notionApi": {
+          "id": "35aHrCWjwItW7I6H",
+          "name": "N8N API (TRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are a helpful, intelligent classification and summarization expert.",
+              "role": "system"
+            },
+            {
+              "content": "=Please analyze the following \"text\" and break it into the following structured fields. The content provided is in plain text. When the speaker suggest a name, theme or format, use that where appropriate. Extract and categorize the information as described below: \n\nFields to extract:\nPage name: {{ $('Google Drive').item.json.name }}\n\nTitle: (Generated from a summary of the content in the \"text\" field. Should accurately convey the \"idea\" from the speakers text. If the speaker suggests one themself, use that instead)\n\nCTA: (Suggest a call to action that makes sense for this type of post on LinkedIn. Should be compelling and creative and engage the reader. If the speaker suggests one themself, use that instead)\n\nFormat: (Suggest a post format from among these (or create a new one if it makes sense), \"Quote Graphic\", \"Storytelling\", \"Infographic\", \"Text Post\", \"Short Video\", \"Carousel\". If the speaker suggests one themself, use that instead)\n\nTheme: (Suggest a theme based on the text and select from among these (or suggest a new one if appropriate), \"Personal Stories\", \"Franchise & Business Growth\", \"Engagement and Polls\", \"Success Stories\", \"Industry Trends\", \"Actionable Tips\", \"Insights\". If the speaker suggests one themself, use that instead)\n\nPost Suggestion: (Suggest, after carefully considering the speakers idea, a LinkedIn Post including emoji's, facts, image ideas and more. This field will be used as a starting point for creating new content to post on LinkedIn so be creative)\n\nHashtags: (Suggest the 3 top hashtags that might apply to this content. Always add #realfood as the 4th tag)\n\nImage Prompt: (If the post type will include an image of any kind, suggest an prompt to use at ideogram.ai or chatgpt.com to generate the image you think works best)\n\nIdea Date: (Use today's date in ISO 601 format)\n\nText Content: {{ $json.text }}\nToday's Date: {{ $now }}\n"
+            },
+            {
+              "content": "={{ $json.text }}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        752,
+        208
+      ],
+      "id": "5890167d-ee94-480f-9c7c-6cbf54ef8d35",
+      "name": "Summarize and Calculate",
+      "credentials": {
+        "openAiApi": {
+          "id": "eIBbAwYBZjBAmeRb",
+          "name": "OpenAI (TRFA)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Summarize and Calculate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize and Calculate": {
+      "main": [
+        [
+          {
+            "node": "Append To Notion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ee9773e2-a352-44cc-9566-ac92d72fd44a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4a3618b1d61ff75e14c32f7cb70d6f38993326100da48466d26b149497c437dd"
+  },
+  "id": "Xd2ZF8cx4pFcyG9j",
+  "tags": [
+    {
+      "updatedAt": "2025-05-21T00:25:57.786Z",
+      "createdAt": "2025-05-21T00:25:57.786Z",
+      "id": "5hcZ7EUmra3ehA5v",
+      "name": "TRFA"
+    }
+  ]
+}

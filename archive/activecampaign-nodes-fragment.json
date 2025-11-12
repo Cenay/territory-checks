@@ -1,0 +1,226 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 1,
+        "additionalFields": {
+          "email": "={{ $json.consultant_email }}"
+        },
+        "continueOnFail": true
+      },
+      "id": "ac-find-consultant",
+      "name": "Find Consultant",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "YOUR_ACTIVECAMPAIGN_CREDENTIAL_ID",
+          "name": "ActiveCampaign account"
+        }
+      },
+      "notes": "Searches for existing consultant by email address"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "ac-consultant-exists",
+      "name": "Consultant Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ],
+      "notes": "Checks if consultant already exists in ActiveCampaign"
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "email": "={{ $json.consultant_email }}",
+        "updateIfExists": true,
+        "additionalFields": {
+          "firstName": "={{ $json.consultant_first_name }}",
+          "lastName": "={{ $json.consultant_last_name }}",
+          "phone": "={{ $json.consultant_phone }}",
+          "fieldValues": {
+            "fieldValue": [
+              {
+                "field": "YOUR_NETWORK_FIELD_ID",
+                "value": "={{ $json.network }}"
+              },
+              {
+                "field": "YOUR_PERSON_TYPE_FIELD_ID",
+                "value": "Consultant"
+              }
+            ]
+          }
+        }
+      },
+      "id": "ac-create-consultant",
+      "name": "Create Consultant",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        800,
+        400
+      ],
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "YOUR_ACTIVECAMPAIGN_CREDENTIAL_ID",
+          "name": "ActiveCampaign account"
+        }
+      },
+      "notes": "Creates new consultant contact if they don't exist"
+    },
+    {
+      "parameters": {
+        "resource": "contactList",
+        "operation": "add",
+        "list": "YOUR_CONSULTANT_LIST_ID",
+        "contact": "={{ $json.id }}"
+      },
+      "id": "ac-add-to-list",
+      "name": "Add to Consultant List",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ],
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "YOUR_ACTIVECAMPAIGN_CREDENTIAL_ID",
+          "name": "ActiveCampaign account"
+        }
+      },
+      "notes": "Adds consultant to the Franchise Consultant list"
+    },
+    {
+      "parameters": {
+        "resource": "contactTag",
+        "operation": "add",
+        "contact": "={{ $json.id }}",
+        "tag": "YOUR_CONSULTANT_TAG_ID"
+      },
+      "id": "ac-tag-consultant",
+      "name": "Tag: Consultant",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ],
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "YOUR_ACTIVECAMPAIGN_CREDENTIAL_ID",
+          "name": "ActiveCampaign account"
+        }
+      },
+      "notes": "Tags contact with 'Consultant' tag"
+    },
+    {
+      "parameters": {
+        "resource": "contactTag",
+        "operation": "add",
+        "contact": "={{ $json.id }}",
+        "tag": "YOUR_TERRITORY_CHECK_TAG_ID"
+      },
+      "id": "ac-tag-territory-check",
+      "name": "Tag: Territory Check",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        300
+      ],
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "YOUR_ACTIVECAMPAIGN_CREDENTIAL_ID",
+          "name": "ActiveCampaign account"
+        }
+      },
+      "notes": "Tags contact with 'Territory Check' tag"
+    }
+  ],
+  "connections": {
+    "Find Consultant": {
+      "main": [
+        [
+          {
+            "node": "Consultant Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultant Exists?": {
+      "main": [
+        [
+          {
+            "node": "Add to Consultant List",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Consultant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Consultant": {
+      "main": [
+        [
+          {
+            "node": "Add to Consultant List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Consultant List": {
+      "main": [
+        [
+          {
+            "node": "Tag: Consultant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tag: Consultant": {
+      "main": [
+        [
+          {
+            "node": "Tag: Territory Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

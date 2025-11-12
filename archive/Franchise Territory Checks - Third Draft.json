@@ -1,0 +1,1170 @@
+{
+  "name": "Franchise Territory Checks - Third Draft",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.allFieldsValid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "2eaa7705-435d-497a-ad9f-ce14068b70c4",
+      "name": "IF: All Required Fields Present?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        192
+      ],
+      "notes": "Checks if all required fields were successfully extracted. Routes to error handler if any fields are missing."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Placeholder territory lookup logic\n// TODO: Replace with actual API call or database query\n\nconst city = $input.item.json.city;\nconst state = $input.item.json.state;\n\n// Hardcoded example territories (replace with real lookup)\nconst unavailableTerritories = [\n  { city: 'Miami', state: 'FL' },\n  { city: 'Orlando', state: 'FL' },\n  { city: 'Los Angeles', state: 'CA' },\n  { city: 'San Francisco', state: 'CA' },\n  { city: 'New York', state: 'NY' }\n];\n\n// Check if territory is unavailable\nconst isUnavailable = unavailableTerritories.some(\n  t => t.city.toLowerCase() === city.toLowerCase() && \n       t.state.toUpperCase() === state.toUpperCase()\n);\n\nconst territoryAvailable = !isUnavailable;\n\nreturn {\n  json: {\n    ...$input.item.json,\n    territoryAvailable,\n    lookupStatus: 'completed',\n    lookupMethod: 'placeholder-hardcoded'\n  }\n};"
+      },
+      "id": "3207911f-5c90-41c7-a3a1-be555a78ab71",
+      "name": "Territory Lookup - Placeholder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        112
+      ],
+      "notes": "PLACEHOLDER: Hardcoded territory availability check. Replace with actual API/database lookup logic."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.territoryAvailable }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "59517927-0fee-4bc6-ab2e-fdd181ed0687",
+      "name": "IF: Territory Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        96,
+        112
+      ],
+      "notes": "Routes workflow based on territory availability. YES branch sends approval, NO branch sends rejection and logs to AirTable."
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailFrom }}",
+        "subject": "=RE: {{ $json.emailSubject }}",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n  <p>Dear {{ $json.consultantName }},</p>\n  \n  <p>Thank you for your inquiry regarding franchise availability in <strong>{{ $json.city }}, {{ $json.state }}</strong> for your candidate <strong>{{ $json.prospectName }}</strong>.</p>\n  \n  <p style=\"background-color: #d4edda; padding: 15px; border-left: 4px solid #28a745; margin: 20px 0;\">\n    <strong style=\"color: #155724;\">✓ Good news!</strong><br/>\n    We are pleased to inform you that <strong>this territory is currently available</strong> for franchise development.\n  </p>\n  \n  <p>We would be happy to discuss this opportunity further with your candidate. Please provide us with:</p>\n  <ul>\n    <li>Candidate's contact information (phone and email)</li>\n    <li>Best times for an introductory call</li>\n    <li>Any preliminary questions they may have</li>\n  </ul>\n  \n  <p>Our franchise development team will reach out within 1-2 business days to begin the discovery process.</p>\n  \n  <p>Best regards,</p>\n  <p><strong>The Real Food Academy</strong><br/>\n  Franchise Development Team</p>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "2812e6a4-b630-4da2-88f2-dc4d1818835a",
+      "name": "Gmail Send - YES Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        0
+      ],
+      "webhookId": "3f1f9e81-ef3b-47b5-a45d-fdee36118780",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Sends professional 'YES' response when territory is available"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.emailFrom }}",
+        "subject": "=RE: {{ $json.emailSubject }}",
+        "message": "=<html>\n<body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">\n  <p>Dear {{ $json.consultantName }},</p>\n  \n  <p>Thank you for your inquiry regarding franchise availability in <strong>{{ $json.city }}, {{ $json.state }}</strong> for your candidate <strong>{{ $json.prospectName }}</strong>.</p>\n  \n  <p style=\"background-color: #f8d7da; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0;\">\n    <strong style=\"color: #721c24;\">Territory Status:</strong><br/>\n    Unfortunately, <strong>this territory is not currently available</strong> for new franchise development.\n  </p>\n  \n  <p>We appreciate your interest in The Real Food Academy. While this specific location is not available, we may have opportunities in nearby territories that could interest your candidate.</p>\n  \n  <p>If your candidate is open to exploring alternative locations within the region, please let us know and we'll be happy to provide information on available territories.</p>\n  \n  <p>We will keep your inquiry on file and notify you if the situation changes in this market.</p>\n  \n  <p>Best regards,</p>\n  <p><strong>The Real Food Academy</strong><br/>\n  Franchise Development Team</p>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "0d057835-62d1-4b08-bb53-c17d59d0e1db",
+      "name": "Gmail Send - NO Reply",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        304,
+        192
+      ],
+      "webhookId": "1121eccb-b7cd-41be-b70d-9df2d8dc9fa3",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Sends professional 'NO' response when territory is unavailable"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblhT9L9aA9IiqJVE",
+          "mode": "list",
+          "cachedResultName": "Franchise_Inquiries",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblhT9L9aA9IiqJVE"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Network",
+              "displayName": "Network",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "IFPG",
+                  "value": "IFPG"
+                },
+                {
+                  "name": "FBA",
+                  "value": "FBA"
+                },
+                {
+                  "name": "FranServe",
+                  "value": "FranServe"
+                },
+                {
+                  "name": "TYN",
+                  "value": "TYN"
+                },
+                {
+                  "name": "MFE",
+                  "value": "MFE"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Consultant",
+              "displayName": "Consultant",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prospect",
+              "displayName": "Prospect",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Subject",
+              "displayName": "Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Body",
+              "displayName": "Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reply_Status",
+              "displayName": "Reply_Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status_Notes",
+              "displayName": "Status_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Territory",
+              "displayName": "Territory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available (from Territory)",
+              "displayName": "Available (from Territory)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "a06c4db9-5b1a-4a63-901b-147c89fc51b2",
+      "name": "AirTable - Log NO Response",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        528,
+        192
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs inquiry details to AirTable when territory is unavailable. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_ZZZZZZZZ"
+        ]
+      },
+      "id": "af65f328-001d-4f7c-bd58-67cfca556f85",
+      "name": "Gmail Label - Manual Review Required",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        304
+      ],
+      "webhookId": "e3abed26-3103-4da5-acb0-71b0d923a59d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Flags email for manual review when required fields are missing or ambiguous. IMPORTANT: Create label in Gmail and replace Label_ZZZZZZZZ with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblt8dOHOqnzXEvLY",
+          "mode": "list",
+          "cachedResultName": "Territories",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblt8dOHOqnzXEvLY"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Available": false,
+            "Remaining": 0
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "State_Name",
+              "displayName": "State_Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State_Abbrev",
+              "displayName": "State_Abbrev",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available",
+              "displayName": "Available",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "boolean",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Remaining",
+              "displayName": "Remaining",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Notes",
+              "displayName": "Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "ac5b0516-8013-48cb-a366-cb71205a60d6",
+      "name": "AirTable - Log Error/Manual Review",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        112,
+        304
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs emails with missing fields to AirTable for tracking and manual processing. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_XXXXXXXX"
+        ]
+      },
+      "id": "b8e120f7-0f7e-4037-9108-6e4ba7f85bc3",
+      "name": "Label - Processed-Yes",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        0
+      ],
+      "webhookId": "c4fa7d3a-1814-4889-9faa-98fb9257dee8",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Marks email as processed with 'Processed-Yes' label for deduplication. IMPORTANT: Create label in Gmail and replace Label_XXXXXXXX with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $json.emailId }}",
+        "labelIds": [
+          "Label_YYYYYYYY"
+        ]
+      },
+      "id": "f390268c-f052-44eb-ab5f-4bf0c75ee19f",
+      "name": "Label - Processed-No",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        736,
+        192
+      ],
+      "webhookId": "a976be3d-8f12-4255-874d-3c79279f5168",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gJIbjBkiYpsBXCof",
+          "name": "Gmail (cenay@cenaynailor.com)"
+        }
+      },
+      "notes": "Marks email as processed with 'Processed-No' label for deduplication. IMPORTANT: Create label in Gmail and replace Label_YYYYYYYY with actual label ID"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "base": {
+          "__rl": true,
+          "value": "appOCIi0D5JBCnnAh",
+          "mode": "list",
+          "cachedResultName": "TRFA Franchise",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblhT9L9aA9IiqJVE",
+          "mode": "list",
+          "cachedResultName": "Franchise_Inquiries",
+          "cachedResultUrl": "https://airtable.com/appOCIi0D5JBCnnAh/tblhT9L9aA9IiqJVE"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Network",
+              "displayName": "Network",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "IFPG",
+                  "value": "IFPG"
+                },
+                {
+                  "name": "FBA",
+                  "value": "FBA"
+                },
+                {
+                  "name": "FranServe",
+                  "value": "FranServe"
+                },
+                {
+                  "name": "TYN",
+                  "value": "TYN"
+                },
+                {
+                  "name": "MFE",
+                  "value": "MFE"
+                }
+              ],
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Consultant",
+              "displayName": "Consultant",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Prospect",
+              "displayName": "Prospect",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Subject",
+              "displayName": "Email_Subject",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Email_Body",
+              "displayName": "Email_Body",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reply_Status",
+              "displayName": "Reply_Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Status_Notes",
+              "displayName": "Status_Notes",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Territory",
+              "displayName": "Territory",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Available (from Territory)",
+              "displayName": "Available (from Territory)",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "1ab491e4-22b3-459b-a256-449c470b79ba",
+      "name": "AirTable - Log YES Response",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        528,
+        0
+      ],
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "9wc6wNj6iIoF72yl",
+          "name": "Airtable (TRFA)"
+        }
+      },
+      "notes": "Logs inquiry details to AirTable when territory is unavailable. IMPORTANT: Replace 'appXXXXXXXXXXXXXX' with your actual AirTable base ID"
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.text || $json.html }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "is_territory_check",
+              "type": "boolean",
+              "description": "=Is this email a territory check request?",
+              "required": true
+            },
+            {
+              "name": "network",
+              "description": "=Which network? IFPG/FranServe/FBA/Direct Form/TYN",
+              "required": true
+            },
+            {
+              "name": "consultant_first_name",
+              "description": "=Consultant first name",
+              "required": true
+            },
+            {
+              "name": "consultant_last_name",
+              "description": "=Consultant last name",
+              "required": true
+            },
+            {
+              "name": "consultant_email",
+              "description": "Reply To Email",
+              "required": true
+            },
+            {
+              "name": "consultant_phone",
+              "description": "Consultant Phone"
+            },
+            {
+              "name": "prospect_first_name",
+              "description": "- Look for \"First Name\" + \"Last Name\" in Client's Information (FBA) and extract the first name\n- Look for \"Candidate:\" line (IFPG) and extract the first name\n- Look for \"Prospect:\" line (FranServe) and extract the first name\n- Look for names in \"client living in\" context (TYN) and extract the first name\n- Extract from form submissions (Direct)\n- Leave BLANK if not provided"
+            },
+            {
+              "name": "prospect_last_name",
+              "description": "- Look for \"First Name\" + \"Last Name\" in Client's Information (FBA) and extract the last name\n- Look for \"Candidate:\" line (IFPG) and extract the last name\n- Look for \"Prospect:\" line (FranServe) and extract the last name\n- Look for names in \"client living in\" context (TYN) and extract the last name\n- Extract from form submissions (Direct)\n- Leave BLANK if not provided"
+            },
+            {
+              "name": "prospect_email",
+              "description": "- Look for \"Prospect Email:\" explicitly stated in   body (FranServe)      - Look for \"Email:\" in form submissions (Direct)      - DO NOT extract from message headers (From, To,   Reply-To, Delivered-To)      - DO NOT guess or infer      - Leave BLANK if not explicitly provided in body   content"
+            },
+            {
+              "name": "prospect_phone",
+              "description": "Look for a phone associated with the prospect or lead"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1.2,
+      "position": [
+        -1424,
+        -144
+      ],
+      "id": "e1c6855c-064f-43bf-9ab5-9bb0a1e5b054",
+      "name": "Information Extractor"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1280,
+        48
+      ],
+      "id": "de186cdd-7cbb-4649-9b38-d63c122f6136",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "eIBbAwYBZjBAmeRb",
+          "name": "OpenAI (TRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "d756310b-58dc-47aa-90a0-2c01837c6d6d",
+      "name": "-> Territory Checks",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1312,
+        208
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w4vtE8fEEGHrj6S2",
+          "name": "Gmail (FranchiseTRFA)"
+        }
+      },
+      "notes": "Monitors Gmail for new unread emails matching franchise inquiry keywords in subject line"
+    },
+    {
+      "parameters": {
+        "content": "## Unused Nodes \nThese are nodes I tried but that didn't go as planned. Leaving them here for now for the lessons learned\n",
+        "height": 448,
+        "width": 544
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1472,
+        -272
+      ],
+      "typeVersion": 1,
+      "id": "7b156252-d3ac-4d0b-85fb-35e471be5713",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Enhanced Email Parser for Territory Check Workflow\n// Handles 5 network formats: Direct Forms, IFPG, FranServe, FBA, TYN\n// Version: 2.0 - Fixed prospect_email extraction issue\n\nconst emailBody = $input.item.json.text || $input.item.json.textPlain || $input.item.json.textHtml || '';\nconst emailSubject = $input.item.json.subject || '';\nconst emailHeaders = $input.item.json.headers || {};\nconst fullText = emailSubject + '\\n' + emailBody;\n\n// Get Reply-To for broker email (common in automated systems)\nconst replyToHeader = emailHeaders['reply-to'] || emailHeaders['Reply-To'] || '';\nconst replyToMatch = replyToHeader.match(/<([^>]+)>/);\nconst replyToEmail = replyToMatch ? replyToMatch[1] : replyToHeader.trim();\n\n// Helper function to extract field with multiple patterns\nfunction extractField(text, patterns, options = {}) {\n  const { returnNull = true, trim = true } = options;\n\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) {\n      const value = trim ? match[1].trim() : match[1];\n      if (value.length > 0) {\n        return value;\n      }\n    }\n  }\n  return returnNull ? null : '';\n}\n\n// Extract email addresses from body text (not headers)\nfunction extractEmailFromBody(text, label) {\n  // Only extract if explicitly labeled\n  const patterns = [\n    new RegExp(`${label}[:\\\\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,})`, 'i'),\n    new RegExp(`${label}[:\\\\s]+<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,})>`, 'i')\n  ];\n\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) {\n      const email = match[1].trim();\n      // Exclude forwarding account emails\n      if (!email.includes('franchise@therealfoodacademy.com') &&\n          !email.includes('franchisetrfa@gmail.com')) {\n        return email;\n      }\n    }\n  }\n  return null;\n}\n\n// ============================================================================\n// NETWORK IDENTIFICATION\n// ============================================================================\nlet network = 'Unknown';\n\nif (fullText.match(/fbamembers\\.com|FBA Broker|Broker's Information:/i)) {\n  network = 'FBA';\n} else if (fullText.match(/ifpg\\.org|IFPG Member|IFPG Inbox/i)) {\n  network = 'IFPG';\n} else if (fullText.match(/franserve|FranServe Consultant/i)) {\n  network = 'FranServe';\n} else if (fullText.match(/theyounetwork\\.com|TYN/i)) {\n  network = 'TYN';\n} else if (fullText.match(/First Name\\*:|Last Name\\*:|forms? completed at/i)) {\n  network = 'Direct';\n}\n\n// ============================================================================\n// PROSPECT INFORMATION EXTRACTION\n// ============================================================================\n\nlet prospectFirstName = null;\nlet prospectLastName = null;\nlet prospectName = null;\nlet prospectEmail = null;\nlet prospectCity = null;\nlet prospectState = null;\nlet prospectZip = null;\n\n// Prospect Email - ONLY from explicit body labels\nprospectEmail = extractEmailFromBody(emailBody, 'Prospect Email') ||\n                extractEmailFromBody(emailBody, 'Email');\n\nif (network === 'FBA') {\n  // FBA Format: Client's Information section with First/Last Name\n  prospectFirstName = extractField(fullText, [\n    /First Name[:\\s]+([A-Za-z]+)/i\n  ]);\n  prospectLastName = extractField(fullText, [\n    /Last Name[:\\s]+([A-Za-z]+)/i\n  ]);\n  if (prospectFirstName && prospectLastName) {\n    prospectName = `${prospectFirstName} ${prospectLastName}`;\n  }\n\n  prospectCity = extractField(fullText, [\n    /City[:\\s]+([A-Za-z\\s]+?)(?:\\n|,|$)/i\n  ]);\n  prospectState = extractField(fullText, [\n    /State[:\\s]+([A-Z]{2})\\b/i\n  ]);\n  prospectZip = extractField(fullText, [\n    /Zip[:\\s]+(\\d{5})/i\n  ]);\n\n} else if (network === 'FranServe') {\n  // FranServe Format: Prospect: Name followed by Prospect Email:\n  prospectName = extractField(fullText, [\n    /Prospect[:\\s]+([A-Za-z\\s&]+?)(?:\\n|$)/i\n  ]);\n\n  // City/State from \"Desired Territory\" or address info\n  const territory = extractField(fullText, [\n    /Desired Territory[:\\s]+([^\\n]+)/i\n  ]);\n  if (territory) {\n    const cityStateMatch = territory.match(/([A-Za-z\\s]+),\\s*([A-Z]{2})/);\n    if (cityStateMatch) {\n      prospectCity = cityStateMatch[1].trim();\n      prospectState = cityStateMatch[2].trim();\n    }\n  }\n\n} else if (network === 'IFPG') {\n  // IFPG Format: Candidate: Name\n  prospectName = extractField(fullText, [\n    /Candidate[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n\n  // Extract city/state from \"Interested in...\" or territory description\n  const territoryMatch = fullText.match(/Interested in ([^(]+?)(?:Area|area)?\\s*\\(Lives in zip code (\\d{5})\\)/i);\n  if (territoryMatch) {\n    prospectCity = territoryMatch[1].trim().replace(/,.*$/, '').trim();\n    prospectZip = territoryMatch[2];\n  } else {\n    const cityStateMatch = fullText.match(/([A-Za-z\\s]+),\\s*([A-Z]{2})\\s+\\d{5}/);\n    if (cityStateMatch) {\n      prospectCity = cityStateMatch[1].trim();\n      prospectState = cityStateMatch[2].trim();\n    }\n  }\n\n} else if (network === 'TYN') {\n  // TYN Format: \"client living in [City], [State]\" or mentions names\n  const clientMatch = fullText.match(/client living in ([^,]+),\\s*([A-Z]{2})/i);\n  if (clientMatch) {\n    prospectCity = clientMatch[1].trim();\n    prospectState = clientMatch[2].trim();\n  }\n\n  // Try to extract prospect name from \"Please check your files for [Name]\"\n  prospectName = extractField(fullText, [\n    /check your files for ([A-Za-z\\s&]+?) and register/i,\n    /client[:\\s]+([A-Za-z\\s&]+?)(?:\\n|$)/i\n  ]);\n\n} else if (network === 'Direct') {\n  // Direct Form: First Name*, Last Name*, Email:, City:, State:\n  prospectFirstName = extractField(fullText, [\n    /First Name\\*?[:\\s]+([A-Za-z]+)/i\n  ]);\n  prospectLastName = extractField(fullText, [\n    /Last Name\\*?[:\\s]+([A-Za-z]+)/i\n  ]);\n  if (prospectFirstName && prospectLastName) {\n    prospectName = `${prospectFirstName} ${prospectLastName}`;\n  }\n\n  prospectCity = extractField(fullText, [\n    /City[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  prospectState = extractField(fullText, [\n    /State[:\\s]+([A-Z]{2})/i\n  ]);\n}\n\n// ============================================================================\n// TERRITORY EXTRACTION\n// ============================================================================\n\nlet territoryRequested = null;\n\n// Network-specific territory extraction\nif (network === 'FBA') {\n  // FBA: Territory appears after \"buttons below\" and before \"Territory Notes\"\n  const fbaMatch = fullText.match(/buttons below\\.?\\s*\\n\\s*([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})/i);\n  if (fbaMatch) {\n    territoryRequested = fbaMatch[1].trim();\n  } else {\n    // Fallback: Look for City, ST ZIP pattern near Client's Information\n    const fallbackMatch = emailBody.match(/([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})\\s*(?:\\n|$)/);\n    if (fallbackMatch) {\n      territoryRequested = fallbackMatch[1].trim();\n    }\n  }\n} else if (network === 'FranServe') {\n  // FranServe: \"Desired Territory: ...\"\n  territoryRequested = extractField(fullText, [\n    /Desired Territory[:\\s]+([^\\n]+)/i\n  ]);\n} else if (network === 'IFPG') {\n  // IFPG: \"Interested in ... Area\" or territory description\n  territoryRequested = extractField(fullText, [\n    /Interested in ([^\\n]+?)(?:Area|area)/i,\n    /Territory Check from [^:]+:\\s*([^\\n]+)/i\n  ]);\n} else if (network === 'TYN') {\n  // TYN: Extract from subject line or market description\n  const tynMatch = emailSubject.match(/Territory Check\\s*[–-]\\s*([^-]+?)\\s*-\\s*The Real Food Academy/i);\n  if (tynMatch) {\n    territoryRequested = tynMatch[1].trim();\n  } else {\n    // Fallback: look for market in body\n    territoryRequested = extractField(fullText, [\n      /in and around the ([^\\n]+?) market/i,\n      /living in ([^,]+,\\s*[A-Z]{2})/i\n    ]);\n  }\n} else if (network === 'Direct') {\n  // Direct: Use City, State from form\n  if (prospectCity && prospectState) {\n    territoryRequested = `${prospectCity}, ${prospectState}`;\n  }\n} else {\n  // Generic fallback patterns\n  const territoryPatterns = [\n    /Desired Territory[:\\s]+([^\\n]+)/i,\n    /Interested in ([^\\n]+?)(?:Area|area|market)/i,\n    /([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})/,  // City, ST 12345 format\n    /([A-Za-z\\s]+,\\s*[A-Z]{2})(?:\\s+area|\\s+market)?/i\n  ];\n  territoryRequested = extractField(fullText, territoryPatterns);\n}\n\n// If we still don't have territory but have city/state, construct it\nif (!territoryRequested && prospectCity && prospectState) {\n  territoryRequested = prospectZip\n    ? `${prospectCity}, ${prospectState} ${prospectZip}`\n    : `${prospectCity}, ${prospectState}`;\n}\n\n// ============================================================================\n// BROKER/CONSULTANT INFORMATION EXTRACTION\n// ============================================================================\n\nlet brokerName = null;\nlet brokerEmail = null;\nlet brokerPhone = null;\nlet brokerCompany = null;\n\nif (network === 'FBA') {\n  brokerName = extractField(fullText, [\n    /Broker's Name[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  brokerEmail = extractEmailFromBody(emailBody, \"Broker's Email\");\n  brokerPhone = extractField(fullText, [\n    /Broker's Phone Number[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = extractField(fullText, [\n    /Broker's Company[:\\s]+([^\\n]+)/i\n  ]);\n\n} else if (network === 'FranServe') {\n  brokerName = extractField(fullText, [\n    /Referring Consultant[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  brokerEmail = extractEmailFromBody(emailBody, 'Consultant Email');\n  brokerPhone = extractField(fullText, [\n    /Consultant Phone[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = 'FranServe';\n\n} else if (network === 'IFPG') {\n  const memberMatch = fullText.match(/Territory Check from IFPG Member ([A-Za-z\\s]+)/i);\n  if (memberMatch) {\n    brokerName = memberMatch[1].trim();\n  }\n\n  // IFPG uses Reply-To for broker email\n  if (replyToEmail && replyToEmail.includes('@')) {\n    brokerEmail = replyToEmail;\n  }\n\n  brokerPhone = extractField(fullText, [\n    /Phone[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = 'IFPG';\n\n} else if (network === 'TYN') {\n  // TYN broker info from signature\n  const signatureMatch = fullText.match(/Thanks,\\s+([A-Za-z\\s]+)(?:\\n|$)/i);\n  if (signatureMatch) {\n    brokerName = signatureMatch[1].trim();\n  }\n\n  // TYN uses Reply-To or From email\n  if (replyToEmail && replyToEmail.includes('@')) {\n    brokerEmail = replyToEmail;\n  }\n\n  brokerCompany = 'The You Network';\n\n} else if (network === 'Direct') {\n  // No broker for direct inquiries\n  brokerName = 'Direct Inquiry';\n  brokerCompany = 'Website';\n}\n\n// ============================================================================\n// VALIDATION AND OUTPUT\n// ============================================================================\n\nconst requiredFields = {\n  network,\n  territoryRequested,\n  prospectName\n};\n\nconst missingFields = [];\nfor (const [field, value] of Object.entries(requiredFields)) {\n  if (!value || value.length < 2) {\n    missingFields.push(field);\n  }\n}\n\nconst allFieldsValid = missingFields.length === 0;\n\n// Determine if this is a territory check\nconst isTerritoryCheck = fullText.match(/territory check/i) !== null;\n\nreturn {\n  json: {\n    // Original email data\n    emailId: $input.item.json.id,\n    emailSubject: emailSubject,\n    emailBody: emailBody.substring(0, 5000), // Truncate for storage\n    emailFrom: $input.item.json.from,\n    emailDate: $input.item.json.date,\n\n    // Classification\n    network: network,\n    is_territory_check: isTerritoryCheck,\n\n    // Prospect information\n    prospect_first_name: prospectFirstName,\n    prospect_last_name: prospectLastName,\n    prospect_name: prospectName,\n    prospect_email: prospectEmail, // Will be null if not explicitly in body\n    prospect_city: prospectCity,\n    prospect_state: prospectState,\n    prospect_zip: prospectZip,\n\n    // Territory\n    territory_requested: territoryRequested,\n\n    // Broker/Consultant information\n    consultant_first_name: brokerName ? brokerName.split(' ')[0] : null,\n    consultant_last_name: brokerName && brokerName.split(' ').length > 1\n      ? brokerName.split(' ').slice(1).join(' ')\n      : null,\n    consultant_name: brokerName,\n    consultant_email: brokerEmail,\n    consultant_phone: brokerPhone,\n    consultant_company: brokerCompany,\n\n    // Validation status\n    allFieldsValid: allFieldsValid,\n    missingFields: missingFields,\n    errorNotes: missingFields.length > 0\n      ? `Missing or ambiguous fields: ${missingFields.join(', ')}`\n      : null,\n\n    // Debug info\n    extraction_notes: {\n      prospect_email_found: prospectEmail !== null,\n      prospect_email_source: prospectEmail ? 'body_label' : 'not_found',\n      network_identified: network,\n      reply_to_available: replyToEmail !== ''\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1104,
+        208
+      ],
+      "id": "aebd91b5-9556-46dc-a062-da1e226f9ec7",
+      "name": "Extract Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7b482c9f-0501-4f22-a96d-95c274656182",
+              "leftValue": "={{ $json.is_territory_check }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -896,
+        208
+      ],
+      "id": "c68ddad7-2a1a-410a-846a-6e3979ede505",
+      "name": "Is Territory Check"
+    }
+  ],
+  "pinData": {
+    "-> Territory Checks": [
+      {
+        "json": {
+          "id": "19a4bdc71fb7cc05",
+          "threadId": "19a4bdc71fb7cc05",
+          "labelIds": [
+            "UNREAD",
+            "CATEGORY_PERSONAL",
+            "INBOX"
+          ],
+          "sizeEstimate": 16053,
+          "headers": {
+            "delivered-to": "Delivered-To: franchisetrfa@gmail.com",
+            "received": "Received: by mx.zohomail.com with SMTPS id 1762209323981268.0374936931464;\r\n\tMon, 3 Nov 2025 14:35:23 -0800 (PST)",
+            "x-google-smtp-source": "X-Google-Smtp-Source: AGHT+IH+lgh+ymabFHLdOFOI5AGo1kFr23EKyLbNDXDoK+goX6O7/AdPu2cJ2ERpyFX3GzEVY/zT",
+            "x-received": "X-Received: by 2002:a05:6a20:a105:b0:33e:84f7:94f9 with SMTP id adf61e73a8af0-348c9f6707amr16097901637.9.1762209329518;\r\n        Mon, 03 Nov 2025 14:35:29 -0800 (PST)",
+            "arc-seal": "ARC-Seal: i=1; a=rsa-sha256; t=1762209326; cv=none; \r\n\td=zohomail.com; s=zohoarc; \r\n\tb=T1a41Kf5gbTGEvgBEwW67KaDAlhldaclrk2sz/sFmBqCKJ6q+/j2Iw4IOzXj183mclH+fs9PdaOelyVrf0Ku613WnTh4X2TGhfsUCTWbqs+MJfVOqtcTX54z/EqodJXE6VIGFOIUQScACXe1IqEUoeKm9vkUDWHfyA/ozQ50i50=",
+            "arc-message-signature": "ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=zohomail.com; s=zohoarc; \r\n\tt=1762209326; h=Content-Type:Content-Transfer-Encoding:Date:Date:From:From:In-Reply-To:MIME-Version:Message-ID:References:Subject:Subject:To:To:Message-Id:Reply-To:Cc; \r\n\tbh=KDbo2eH2BkLZsSJRBpb077snfRhXpb/Ymb3rSx2MlvI=; \r\n\tb=gWm/b3gAEcNLa6Nd+x+gVa0ZbgVABDLZNZWjMdJlKvtTdGZA6U4mTZG2rTLVZMpQgSD3N5ZBe4BWx/vEfGqN/Ty73fcI/pv590bzmuc+rCuQKGu0IvnVkGBRUyrf1EA0ICMFTwUXZHzhfZpCF4ULb7e63jMeIo5L66siAs8a0Ng=",
+            "arc-authentication-results": "ARC-Authentication-Results: i=1; mx.zohomail.com;\r\n\tdkim=pass  header.i=therealfoodacademy.com;\r\n\tspf=pass  smtp.mailfrom=franchise@therealfoodacademy.com;\r\n\tdmarc=pass header.from=<franchise@therealfoodacademy.com>",
+            "return-path": "Return-Path: <franchise@therealfoodacademy.com>",
+            "received-spf": "Received-SPF: pass (google.com: domain of franchise@therealfoodacademy.com designates 136.143.188.12 as permitted sender) client-ip=136.143.188.12;",
+            "authentication-results": "Authentication-Results: mx.google.com;\r\n       dkim=pass header.i=@therealfoodacademy.com header.s=default header.b=ZSc4VHJp;\r\n       arc=pass (i=1 spf=pass spfdomain=therealfoodacademy.com dkim=pass dkdomain=therealfoodacademy.com dmarc=pass fromdomain=therealfoodacademy.com>);\r\n       spf=pass (google.com: domain of franchise@therealfoodacademy.com designates 136.143.188.12 as permitted sender) smtp.mailfrom=franchise@therealfoodacademy.com;\r\n       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=therealfoodacademy.com",
+            "dkim-signature": "DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed; t=1762209326;\r\n\ts=default; d=therealfoodacademy.com;\r\n\ti=franchise@therealfoodacademy.com;\r\n\th=Message-ID:Date:Date:MIME-Version:Subject:Subject:To:To:References:From:From:In-Reply-To:Content-Type:Content-Transfer-Encoding:Message-Id:Reply-To:Cc;\r\n\tbh=KDbo2eH2BkLZsSJRBpb077snfRhXpb/Ymb3rSx2MlvI=;\r\n\tb=ZSc4VHJpMh7Ynvbkoe6me0v9MpKQSDDjRm3lIo0HgbeTvGdKs0wr5odJRTPfV1qj\r\n\t9MHp9D/WHS5MgzfP2x6V2qu94geLhAimA3j+IjU+nV736N/i+ptCr5SyC+7z0XxuGSV\r\n\t9rJhzI7isTbDrmz1mSmexr7Iocsj5//kvldhl+zA=",
+            "message-id": "Message-ID: <ca3ed64b-e6a8-40cc-bb30-1adc69310d35@therealfoodacademy.com>",
+            "date": "Date: Mon, 3 Nov 2025 17:35:23 -0500",
+            "mime-version": "MIME-Version: 1.0",
+            "user-agent": "User-Agent: Mozilla Thunderbird",
+            "subject": "Subject: Fwd: TERRITORY CHECK for The Real Food Academy - Justin Dearing From\r\n Richard Ashe - Response Required",
+            "to": "To: franchisetrfa@gmail.com",
+            "references": "References: <OkOWqU7ZQBW-6eM_FzAPyg@geopod-ismtpd-1>",
+            "from": "From: Arthur Cummins <franchise@therealfoodacademy.com>",
+            "in-reply-to": "In-Reply-To: <OkOWqU7ZQBW-6eM_FzAPyg@geopod-ismtpd-1>",
+            "x-forwarded-message-id": "X-Forwarded-Message-Id: <OkOWqU7ZQBW-6eM_FzAPyg@geopod-ismtpd-1>",
+            "content-type": "Content-Type: text/html; charset=UTF-8",
+            "content-transfer-encoding": "Content-Transfer-Encoding: quoted-printable",
+            "x-antivirus": "X-Antivirus: Avast (VPS 251103-4, 11/3/2025), Outbound message",
+            "x-antivirus-status": "X-Antivirus-Status: Clean",
+            "x-zohomailclient": "X-ZohoMailClient: External"
+          },
+          "html": "<HTML><BODY><BR><BR>-------- Forwarded Message --------<TABLE CELLPADDING=0 CELLSPACING=0 BORDER=0 class=\"moz-email-headers-table\"><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>Subject: </TH><TD>TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard Ashe - Response Required</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>Date: </TH><TD>Mon, 03 Nov 2025 22:32:41 +0000 (UTC)</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>From: </TH><TD>Franchise Broker&#39;s Association &lt;referrals@fbamembers.com&gt;</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>Reply-To: </TH><TD>Richard Ashe &lt;rich@veteranfranchiseadvisers.com&gt;</TD></TR><TR><TH VALIGN=BASELINE ALIGN=RIGHT NOWRAP>To: </TH><TD>franchise@therealfoodacademy.com</TD></TR></TABLE>\n<BR><BR><!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Transitional//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd\">\n<html>\n  <head>\n  <!--[if gte mso 9]><xml>\n  <o:OfficeDocumentSettings>\n  <o:AllowPNG/>\n  <o:PixelsPerInch>96/o:PixelsPerInch\n  /o:OfficeDocumentSettings\n  </xml><![endif]-->\n    <meta http-equiv=\"Content-Type\" content=\"text/html;UTF-8\" />\n  </head>\n  <body style=\"margin: 0px; background-color: #F4F3F4; font-family: Helvetica, Arial, sans-serif; font-size:12px;\" text=\"#444444\" bgcolor=\"#F4F3F4\" link=\"#21759B\" alink=\"#21759B\" vlink=\"#21759B\" >\n    <table border=\"0\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"#F4F3F4\">\n      <tbody>\n        <tr>\n          <td style=\"padding: 15px;\"><center>\n            <table width=\"570\" cellspacing=\"0\" cellpadding=\"0\" align=\"center\" bgcolor=\"#ffffff\">\n              <tbody>\n                <tr>\n                  <td align=\"left\">\n                    <div style=\"border: solid 1px #d9d9d9;\">\n                      <table id=\"header\" style=\"line-height: 1.6; font-size: 12px; font-family: Helvetica, Arial, sans-serif; border: solid 1px #FFFFFF; color: #444;\" border=\"0\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"#ffffff\">\n                        <tbody>\n                          <tr>\n                            <td colspan=\"2\" height=\"30\" style=\"color: #ffffff;\" valign=\"bottom\">.</td>\n                          </tr>\n                          <tr>\n                            <td style=\"line-height: 32px; padding-left: 30px;\" valign=\"baseline\"><span style=\"font-size: 32px;\"><a href=\"http://fbamembers.com/\" style=\"text-decoration: none;\" target=\"_blank\"><img src=\"https://fbamembers.com/wp-content/uploads/2019/04/FBA-Logo.png\" alt=\"\" /> </a></span></td>\n                            <td style=\"padding-right: 30px;\" align=\"right\" valign=\"baseline\"><span style=\"font-size: 14px; color: #777777;\"> </span></td>\n                          </tr>\n                        </tbody>\n                      </table>\n                      <table id=\"content\" style=\"margin-top: 15px; margin-right: 30px; margin-left: 30px; color: #444; line-height: 1.6; font-size: 12px; font-family: Arial, sans-serif;\" border=\"0\" width=\"510\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"#ffffff\">\n                        <tbody>\n                          <tr>\n                            <td colspan=\"2\" style=\"border-top: solid 1px #d9d9d9;\"><div id=\"email-template-content\"><h2>New Pre-Registration / Territory Check for The Real Food Academy from FBA Broker Richard Ashe</h2>\n\n<p><img src=\"https://s26232.pcdn.co/wp-content/uploads/2024/08/vfavosb-banner-logo.png\" width=\"150\" height=\"30.515088449532 \"/></p>\n\n\n\n<h3>The Real Food Academy are these territories available?</h3>\n\n<p>Let Richard Ashe know the status of these territories by clicking the buttons below.</p>\n\n<div style='background: #f4f1c4;padding: 5px 20px 20px;border-bottom: 4px solid #fff; margin-bottom: 10px'>\n<h3 style='color: #43706e;'>Leander, TX 78641 </h3>\n<strong>Territory Notes:</strong><br> </div>\n\n<h2 style='color: #991b1b;'>Leander is a city in Williamson and Travis Counties, Texas, United States. Its population was 59,202 at the 2020 census and 87,511 at the 2024 census estimate. A suburb just north of Austin, and part of the Greater Austin metropolitan area, it was the fastest-growing city in the United States between 2018 and 2019.<br />\nZIP codes: 78641, 78646<br />\nPopulation: 87,511 (2024)</h2>\n\n\n\t<p style='text-align:center'>\n\t\t<a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur Cummins&type=tc\"\n\t\t\tstyle=\"color:#30917e;display:inline-block;font-family:sans-serif;font-size:14px;font-weight:bold;line-height:40px;text-align:center;width:320px;-webkit-text-size-adjust:none;\">Manage & Reply to Territory Availability</a>\n\t</p>\n\n\t<h2 style='text-align:center'>or mark all requested territories as</h2>\n\n\t<p style='text-align:center'>\n      <a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur Cummins&terrirory=Leander TX 78641&type=tc&status=1\"\n\t  style=\"color:#30917e;display:inline-block;font-family:sans-serif;font-size:14px;font-weight:bold;line-height:40px;text-align:center;width:320px;-webkit-text-size-adjust:none;\">Available</a>\n\n\n      <a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur Cummins&terrirory=Leander TX 78641&type=tc&status=2\"\n\t  style=\"color:#30917e;display:inline-block;font-family:sans-serif;font-size:14px;font-weight:bold;line-height:40px;text-align:center;width:320px;-webkit-text-size-adjust:none;\">Alternate Territory</a>\n\n\n      <a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur Cummins&terrirory=Leander TX 78641&type=tc&status=3\"\n\t  style=\"color:#30917e;display:inline-block;font-family:sans-serif;font-size:14px;font-weight:bold;line-height:40px;text-align:center;width:320px;-webkit-text-size-adjust:none;\">Not Available</a>\n\n\t</p>\n\n\t<p><a href='https://fbamembers.com/message/929479'>Click Here to begin a conversation on FBAMembers.com</a></p>\n\n\n<p><strong>Client's Information:</strong></p>\n<ul>\n<li><strong>Primary Contact</strong></li>\n<li>First Name: Justin</li>\n<li>Last Name: Dearing</li>\n<li>City: Leander</li>\n<li>State: TX</li>\n<li>Zip: 78641</li>\n</ul>\n\n<p><strong>Broker's Information:</strong></p>\n\n<ul>\n<li>Broker's Name: Richard Ashe</li>\n<li>Broker's Company: Veteran Franchise Advisers</li>\n<li>Broker's Phone Number: (713) 849-9642</li>\n<li>Broker's Email: rich@veteranfranchiseadvisers.com</li>\n</ul>\n\n\n\n</div></td>\n                          </tr>\n                        </tbody>\n                      </table>\n                      <table id=\"footer\" style=\"line-height: 1.5; font-size: 12px; font-family: Arial, sans-serif; margin-right: 30px; margin-left: 30px;\" border=\"0\" width=\"520\" cellspacing=\"0\" cellpadding=\"0\" bgcolor=\"#ffffff\">\n                        <tbody>\n                          <tr style=\"font-size: 11px; color: #999999;\">\n                            <td style=\"border-top: solid 1px #d9d9d9;\" colspan=\"2\">\n                              <div style=\"padding-top: 15px; padding-bottom: 1px;\"><img style=\"vertical-align: middle;\" src=\"https://fbamembers.com/wp-admin/images/date-button.gif\" alt=\"Date\" width=\"13\" height=\"13\" /> Email sent 11-03-25 @ 05:32 PM</div>\n                            </td>\n                          </tr>\n                          <tr>\n                            <td colspan=\"2\" style=\"color: #ffffff;\" height=\"15\">.</td>\n                          </tr>\n                        </tbody>\n                      </table>\n                    </div>\n                  </td>\n                </tr>\n              </tbody>\n            </table>\n            </center></td>\n        </tr>\n      </tbody>\n    </table>\n  <img src=\"http://url102.fbamembers.com/wf/open?upn=u001.1A6XeHJhAGheCnpkz7MoxfdSKYdcgX-2BMz1p5ZXHDU2Kbz2VSfOv8UpgCX-2FCiBYfq2V881Ky0y-2Fr785OTzUs1zUKWTS942To5R2n9L0O9OHr2wSrR5jHZmJBy8XMUMzdd-2BYFsQopmSlK0TKtd70hhV2QC-2FE03O4jNYGSV8f0jrY7risLF0j5ru-2FFcgfF88R0LTgdrpYIstAOf3IT-2BgtH-2Bqvz6mhD9t77P-2Bx7S-2FBvL9SdIuk4MUhCx1N1lr7d-2BcHM-2FspxDHzckZdeYzR4ixWBYrmgHwjEanUt0oaSxH4hjggGusnq8CpGr3GTc2OwiTd14dYdaIBaWpS1lYGQcnnQxGiP4noPuCJM3I3EdC0pOmSG9UM3a6SvLYJKzKalFrKHlafjWkWEiN2mY2D2XjS4atkzIan1dw4bMxzLxhMUq2wNRzOxfZLIPXPGi7L13phZPSwHA2Gr5WSrZRhR3oY2Nwytvt3tkV9VY8YtYxWnnywEdGGt4Wghog-2BnUPGHaz9LJzEPqofV5qERM69j37z2yAGciRbSav46oKB8AlzsTk0gE7vDPRj-2FE9f6XWW-2BhLwYdUkIzmLpJGHA9-2B158hrEDhkwZdc8xZB2XpByddU2Audw-3D\" alt=\"\" width=\"1\" height=\"1\" border=\"0\" style=\"height:1px !important;width:1px !important;border-width:0 !important;margin-top:0 !important;margin-bottom:0 !important;margin-right:0 !important;margin-left:0 !important;padding-top:0 !important;padding-bottom:0 !important;padding-right:0 !important;padding-left:0 !important;\"/><div id=\"DAB4FAD8-2DD7-40BB-A1B8-4E2AA1F9FDF2\"><br /><table style=\"border-top: 1px solid #D3D4DE;\"><tr><td style=\"width: 55px; padding-top: 13px;\"><a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\" target=\"_blank\"><img src=\"https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif\" alt=\"\" width=\"46\" height=\"29\" style=\"width: 46px; height: 29px;\"/></a></td><td style=\"width: 470px; padding-top: 12px; color: #41424e; font-size: 13px; font-family: Arial, Helvetica, sans-serif; line-height: 18px;\">Virus-free.<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\" target=\"_blank\" style=\"color: #4453ea;\">www.avast.com</a></td></tr></table><a href=\"#DAB4FAD8-2DD7-40BB-A1B8-4E2AA1F9FDF2\" width=\"1\" height=\"1\"> </a></div></body>\n</html>\n",
+          "text": "\n\n-------- Forwarded Message --------\n\nSubject: TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard\nAshe - Response RequiredDate: Mon, 03 Nov 2025 22:32:41 +0000 (UTC)From:\nFranchise Broker's Association <referrals@fbamembers.com>Reply-To: Richard Ashe\n<rich@veteranfranchiseadvisers.com>To: franchise@therealfoodacademy.com\n\n\n\n. [https://fbamembers.com/wp-content/uploads/2019/04/FBA-Logo.png] \n[http://fbamembers.com/]  \n\n\nNEW PRE-REGISTRATION / TERRITORY CHECK FOR THE REAL FOOD ACADEMY FROM FBA BROKER\nRICHARD ASHE\n\n[https://s26232.pcdn.co/wp-content/uploads/2024/08/vfavosb-banner-logo.png]\n\n\nTHE REAL FOOD ACADEMY ARE THESE TERRITORIES AVAILABLE?\n\nLet Richard Ashe know the status of these territories by clicking the buttons\nbelow.\n\n\nLEANDER, TX 78641\n\nTerritory Notes:\n\n\n\nLEANDER IS A CITY IN WILLIAMSON AND TRAVIS COUNTIES, TEXAS, UNITED STATES. ITS\nPOPULATION WAS 59,202 AT THE 2020 CENSUS AND 87,511 AT THE 2024 CENSUS ESTIMATE.\nA SUBURB JUST NORTH OF AUSTIN, AND PART OF THE GREATER AUSTIN METROPOLITAN AREA,\nIT WAS THE FASTEST-GROWING CITY IN THE UNITED STATES BETWEEN 2018 AND 2019.\nZIP CODES: 78641, 78646\nPOPULATION: 87,511 (2024)\n\nManage & Reply to Territory Availability\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&type=tc]\n\n\nOR MARK ALL REQUESTED TERRITORIES AS\n\nAvailable\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=1] Alternate Territory\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=2] Not Available\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=3]\n\nClick Here to begin a conversation on FBAMembers.com\n[https://fbamembers.com/message/929479]\n\nClient's Information:\n\n * Primary Contact\n * First Name: Justin\n * Last Name: Dearing\n * City: Leander\n * State: TX\n * Zip: 78641\n\nBroker's Information:\n\n * Broker's Name: Richard Ashe\n * Broker's Company: Veteran Franchise Advisers\n * Broker's Phone Number: (713) 849-9642\n * Broker's Email: rich@veteranfranchiseadvisers.com\n\nDate [https://fbamembers.com/wp-admin/images/date-button.gif] Email sent\n11-03-25 @ 05:32 PM\n.\n\n[http://url102.fbamembers.com/wf/open?upn=u001.1A6XeHJhAGheCnpkz7MoxfdSKYdcgX-2BMz1p5ZXHDU2Kbz2VSfOv8UpgCX-2FCiBYfq2V881Ky0y-2Fr785OTzUs1zUKWTS942To5R2n9L0O9OHr2wSrR5jHZmJBy8XMUMzdd-2BYFsQopmSlK0TKtd70hhV2QC-2FE03O4jNYGSV8f0jrY7risLF0j5ru-2FFcgfF88R0LTgdrpYIstAOf3IT-2BgtH-2Bqvz6mhD9t77P-2Bx7S-2FBvL9SdIuk4MUhCx1N1lr7d-2BcHM-2FspxDHzckZdeYzR4ixWBYrmgHwjEanUt0oaSxH4hjggGusnq8CpGr3GTc2OwiTd14dYdaIBaWpS1lYGQcnnQxGiP4noPuCJM3I3EdC0pOmSG9UM3a6SvLYJKzKalFrKHlafjWkWEiN2mY2D2XjS4atkzIan1dw4bMxzLxhMUq2wNRzOxfZLIPXPGi7L13phZPSwHA2Gr5WSrZRhR3oY2Nwytvt3tkV9VY8YtYxWnnywEdGGt4Wghog-2BnUPGHaz9LJzEPqofV5qERM69j37z2yAGciRbSav46oKB8AlzsTk0gE7vDPRj-2FE9f6XWW-2BhLwYdUkIzmLpJGHA9-2B158hrEDhkwZdc8xZB2XpByddU2Audw-3D]\n\n\n\n[https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif]https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com\n[https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient]",
+          "textAsHtml": "<p>-------- Forwarded Message --------</p><p>Subject: TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard<br/>Ashe - Response RequiredDate: Mon, 03 Nov 2025 22:32:41 +0000 (UTC)From:<br/>Franchise Broker&apos;s Association &lt;<a href=\"mailto:referrals@fbamembers.com\">referrals@fbamembers.com</a>&gt;Reply-To: Richard Ashe<br/>&lt;<a href=\"mailto:rich@veteranfranchiseadvisers.com\">rich@veteranfranchiseadvisers.com</a>&gt;To: <a href=\"mailto:franchise@therealfoodacademy.com\">franchise@therealfoodacademy.com</a></p><p>. [<a href=\"https://fbamembers.com/wp-content/uploads/2019/04/FBA-Logo.png\">https://fbamembers.com/wp-content/uploads/2019/04/FBA-Logo.png</a>]&nbsp;<br/>[<a href=\"http://fbamembers.com/\">http://fbamembers.com/</a>] &nbsp;</p><p>NEW PRE-REGISTRATION / TERRITORY CHECK FOR THE REAL FOOD ACADEMY FROM FBA BROKER<br/>RICHARD ASHE</p><p>[<a href=\"https://s26232.pcdn.co/wp-content/uploads/2024/08/vfavosb-banner-logo.png\">https://s26232.pcdn.co/wp-content/uploads/2024/08/vfavosb-banner-logo.png</a>]</p><p>THE REAL FOOD ACADEMY ARE THESE TERRITORIES AVAILABLE?</p><p>Let Richard Ashe know the status of these territories by clicking the buttons<br/>below.</p><p>LEANDER, TX 78641</p><p>Territory Notes:</p><p>LEANDER IS A CITY IN WILLIAMSON AND TRAVIS COUNTIES, TEXAS, UNITED STATES. ITS<br/>POPULATION WAS 59,202 AT THE 2020 CENSUS AND 87,511 AT THE 2024 CENSUS ESTIMATE.<br/>A SUBURB JUST NORTH OF AUSTIN, AND PART OF THE GREATER AUSTIN METROPOLITAN AREA,<br/>IT WAS THE FASTEST-GROWING CITY IN THE UNITED STATES BETWEEN 2018 AND 2019.<br/>ZIP CODES: 78641, 78646<br/>POPULATION: 87,511 (2024)</p><p>Manage &amp; Reply to Territory Availability<br/>[<a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\">https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur</a><br/>Cummins&amp;type=tc]</p><p>OR MARK ALL REQUESTED TERRITORIES AS</p><p>Available<br/>[<a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\">https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur</a><br/>Cummins&amp;terrirory=Leander TX 78641&amp;type=tc&amp;status=1] Alternate Territory<br/>[<a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\">https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur</a><br/>Cummins&amp;terrirory=Leander TX 78641&amp;type=tc&amp;status=2] Not Available<br/>[<a href=\"https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\">https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur</a><br/>Cummins&amp;terrirory=Leander TX 78641&amp;type=tc&amp;status=3]</p><p>Click Here to begin a conversation on <a href=\"http://FBAMembers.com\">FBAMembers.com</a><br/>[<a href=\"https://fbamembers.com/message/929479\">https://fbamembers.com/message/929479</a>]</p><p>Client&apos;s Information:</p><p> * Primary Contact<br/> * First Name: Justin<br/> * Last Name: Dearing<br/> * City: Leander<br/> * State: TX<br/> * Zip: 78641</p><p>Broker&apos;s Information:</p><p> * Broker&apos;s Name: Richard Ashe<br/> * Broker&apos;s Company: Veteran Franchise Advisers<br/> * Broker&apos;s Phone Number: (713) 849-9642<br/> * Broker&apos;s Email: <a href=\"mailto:rich@veteranfranchiseadvisers.com\">rich@veteranfranchiseadvisers.com</a></p><p>Date [<a href=\"https://fbamembers.com/wp-admin/images/date-button.gif\">https://fbamembers.com/wp-admin/images/date-button.gif</a>] Email sent<br/>11-03-25 @ 05:32 PM<br/>.</p><p>[<a href=\"http://url102.fbamembers.com/wf/open?upn=u001.1A6XeHJhAGheCnpkz7MoxfdSKYdcgX-2BMz1p5ZXHDU2Kbz2VSfOv8UpgCX-2FCiBYfq2V881Ky0y-2Fr785OTzUs1zUKWTS942To5R2n9L0O9OHr2wSrR5jHZmJBy8XMUMzdd-2BYFsQopmSlK0TKtd70hhV2QC-2FE03O4jNYGSV8f0jrY7risLF0j5ru-2FFcgfF88R0LTgdrpYIstAOf3IT-2BgtH-2Bqvz6mhD9t77P-2Bx7S-2FBvL9SdIuk4MUhCx1N1lr7d-2BcHM-2FspxDHzckZdeYzR4ixWBYrmgHwjEanUt0oaSxH4hjggGusnq8CpGr3GTc2OwiTd14dYdaIBaWpS1lYGQcnnQxGiP4noPuCJM3I3EdC0pOmSG9UM3a6SvLYJKzKalFrKHlafjWkWEiN2mY2D2XjS4atkzIan1dw4bMxzLxhMUq2wNRzOxfZLIPXPGi7L13phZPSwHA2Gr5WSrZRhR3oY2Nwytvt3tkV9VY8YtYxWnnywEdGGt4Wghog-2BnUPGHaz9LJzEPqofV5qERM69j37z2yAGciRbSav46oKB8AlzsTk0gE7vDPRj-2FE9f6XWW-2BhLwYdUkIzmLpJGHA9-2B158hrEDhkwZdc8xZB2XpByddU2Audw-3D\">http://url102.fbamembers.com/wf/open?upn=u001.1A6XeHJhAGheCnpkz7MoxfdSKYdcgX-2BMz1p5ZXHDU2Kbz2VSfOv8UpgCX-2FCiBYfq2V881Ky0y-2Fr785OTzUs1zUKWTS942To5R2n9L0O9OHr2wSrR5jHZmJBy8XMUMzdd-2BYFsQopmSlK0TKtd70hhV2QC-2FE03O4jNYGSV8f0jrY7risLF0j5ru-2FFcgfF88R0LTgdrpYIstAOf3IT-2BgtH-2Bqvz6mhD9t77P-2Bx7S-2FBvL9SdIuk4MUhCx1N1lr7d-2BcHM-2FspxDHzckZdeYzR4ixWBYrmgHwjEanUt0oaSxH4hjggGusnq8CpGr3GTc2OwiTd14dYdaIBaWpS1lYGQcnnQxGiP4noPuCJM3I3EdC0pOmSG9UM3a6SvLYJKzKalFrKHlafjWkWEiN2mY2D2XjS4atkzIan1dw4bMxzLxhMUq2wNRzOxfZLIPXPGi7L13phZPSwHA2Gr5WSrZRhR3oY2Nwytvt3tkV9VY8YtYxWnnywEdGGt4Wghog-2BnUPGHaz9LJzEPqofV5qERM69j37z2yAGciRbSav46oKB8AlzsTk0gE7vDPRj-2FE9f6XWW-2BhLwYdUkIzmLpJGHA9-2B158hrEDhkwZdc8xZB2XpByddU2Audw-3D</a>]</p><p>[<a href=\"https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif\">https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif</a>]<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com\">https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com</a><br/>[<a href=\"https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient\">https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient</a>]</p>",
+          "subject": "Fwd: TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard Ashe - Response Required",
+          "references": "<OkOWqU7ZQBW-6eM_FzAPyg@geopod-ismtpd-1>",
+          "date": "2025-11-03T22:35:23.000Z",
+          "to": {
+            "value": [
+              {
+                "address": "franchisetrfa@gmail.com",
+                "name": ""
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><a href=\"mailto:franchisetrfa@gmail.com\" class=\"mp_address_email\">franchisetrfa@gmail.com</a></span>",
+            "text": "franchisetrfa@gmail.com"
+          },
+          "from": {
+            "value": [
+              {
+                "address": "franchise@therealfoodacademy.com",
+                "name": "Arthur Cummins"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Arthur Cummins</span> &lt;<a href=\"mailto:franchise@therealfoodacademy.com\" class=\"mp_address_email\">franchise@therealfoodacademy.com</a>&gt;</span>",
+            "text": "\"Arthur Cummins\" <franchise@therealfoodacademy.com>"
+          },
+          "messageId": "<ca3ed64b-e6a8-40cc-bb30-1adc69310d35@therealfoodacademy.com>",
+          "inReplyTo": "<OkOWqU7ZQBW-6eM_FzAPyg@geopod-ismtpd-1>"
+        }
+      }
+    ],
+    "Extract Fields": [
+      {
+        "json": {
+          "emailId": "19a4bdc71fb7cc05",
+          "emailSubject": "Fwd: TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard Ashe - Response Required",
+          "emailBody": "\n\n-------- Forwarded Message --------\n\nSubject: TERRITORY CHECK for The Real Food Academy - Justin Dearing From Richard\nAshe - Response RequiredDate: Mon, 03 Nov 2025 22:32:41 +0000 (UTC)From:\nFranchise Broker's Association <referrals@fbamembers.com>Reply-To: Richard Ashe\n<rich@veteranfranchiseadvisers.com>To: franchise@therealfoodacademy.com\n\n\n\n. [https://fbamembers.com/wp-content/uploads/2019/04/FBA-Logo.png] \n[http://fbamembers.com/]  \n\n\nNEW PRE-REGISTRATION / TERRITORY CHECK FOR THE REAL FOOD ACADEMY FROM FBA BROKER\nRICHARD ASHE\n\n[https://s26232.pcdn.co/wp-content/uploads/2024/08/vfavosb-banner-logo.png]\n\n\nTHE REAL FOOD ACADEMY ARE THESE TERRITORIES AVAILABLE?\n\nLet Richard Ashe know the status of these territories by clicking the buttons\nbelow.\n\n\nLEANDER, TX 78641\n\nTerritory Notes:\n\n\n\nLEANDER IS A CITY IN WILLIAMSON AND TRAVIS COUNTIES, TEXAS, UNITED STATES. ITS\nPOPULATION WAS 59,202 AT THE 2020 CENSUS AND 87,511 AT THE 2024 CENSUS ESTIMATE.\nA SUBURB JUST NORTH OF AUSTIN, AND PART OF THE GREATER AUSTIN METROPOLITAN AREA,\nIT WAS THE FASTEST-GROWING CITY IN THE UNITED STATES BETWEEN 2018 AND 2019.\nZIP CODES: 78641, 78646\nPOPULATION: 87,511 (2024)\n\nManage & Reply to Territory Availability\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&type=tc]\n\n\nOR MARK ALL REQUESTED TERRITORIES AS\n\nAvailable\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=1] Alternate Territory\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=2] Not Available\n[https://fbamembers.com/territory-note/?client=861382-663793-929479&broker=Richard&contact=Arthur\nCummins&terrirory=Leander TX 78641&type=tc&status=3]\n\nClick Here to begin a conversation on FBAMembers.com\n[https://fbamembers.com/message/929479]\n\nClient's Information:\n\n * Primary Contact\n * First Name: Justin\n * Last Name: Dearing\n * City: Leander\n * State: TX\n * Zip: 78641\n\nBroker's Information:\n\n * Broker's Name: Richard Ashe\n * Broker's Company: Veteran Franchise Advisers\n * Broker's Phone Number: (713) 849-9642\n * Broker's Email: rich@veteranfranchiseadvisers.com\n\nDate [https://fbamembers.com/wp-admin/images/date-button.gif] Email sent\n11-03-25 @ 05:32 PM\n.\n\n[http://url102.fbamembers.com/wf/open?upn=u001.1A6XeHJhAGheCnpkz7MoxfdSKYdcgX-2BMz1p5ZXHDU2Kbz2VSfOv8UpgCX-2FCiBYfq2V881Ky0y-2Fr785OTzUs1zUKWTS942To5R2n9L0O9OHr2wSrR5jHZmJBy8XMUMzdd-2BYFsQopmSlK0TKtd70hhV2QC-2FE03O4jNYGSV8f0jrY7risLF0j5ru-2FFcgfF88R0LTgdrpYIstAOf3IT-2BgtH-2Bqvz6mhD9t77P-2Bx7S-2FBvL9SdIuk4MUhCx1N1lr7d-2BcHM-2FspxDHzckZdeYzR4ixWBYrmgHwjEanUt0oaSxH4hjggGusnq8CpGr3GTc2OwiTd14dYdaIBaWpS1lYGQcnnQxGiP4noPuCJM3I3EdC0pOmSG9UM3a6SvLYJKzKalFrKHlafjWkWEiN2mY2D2XjS4atkzIan1dw4bMxzLxhMUq2wNRzOxfZLIPXPGi7L13phZPSwHA2Gr5WSrZRhR3oY2Nwytvt3tkV9VY8YtYxWnnywEdGGt4Wghog-2BnUPGHaz9LJzEPqofV5qERM69j37z2yAGciRbSav46oKB8AlzsTk0gE7vDPRj-2FE9f6XWW-2BhLwYdUkIzmLpJGHA9-2B158hrEDhkwZdc8xZB2XpByddU2Audw-3D]\n\n\n\n[https://s-install.avcdn.net/ipm/preview/icons/icon-envelope-tick-round-orange-animated-no-repeat-v1.gif]https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclientVirus-free.www.avast.com\n[https://www.avast.com/sig-email?utm_medium=email&utm_source=link&utm_campaign=sig-email&utm_content=emailclient]",
+          "emailFrom": {
+            "value": [
+              {
+                "address": "franchise@therealfoodacademy.com",
+                "name": "Arthur Cummins"
+              }
+            ],
+            "html": "<span class=\"mp_address_group\"><span class=\"mp_address_name\">Arthur Cummins</span> &lt;<a href=\"mailto:franchise@therealfoodacademy.com\" class=\"mp_address_email\">franchise@therealfoodacademy.com</a>&gt;</span>",
+            "text": "\"Arthur Cummins\" <franchise@therealfoodacademy.com>"
+          },
+          "emailDate": "2025-11-03T22:35:23.000Z",
+          "network": "FBA",
+          "is_territory_check": true,
+          "prospect_first_name": "Justin",
+          "prospect_last_name": "Dearing",
+          "prospect_name": "Justin Dearing",
+          "prospect_email": "rich@veteranfranchiseadvisers.com",
+          "prospect_city": "IN WILLIAMSON AND TRAVIS COUNTIES",
+          "prospect_state": "TX",
+          "prospect_zip": "78641",
+          "territory_requested": "LEANDER, TX 78641",
+          "consultant_first_name": "Richard",
+          "consultant_last_name": "Ashe",
+          "consultant_name": "Richard Ashe",
+          "consultant_email": "rich@veteranfranchiseadvisers.com",
+          "consultant_phone": "(713) 849-9642",
+          "consultant_company": "Veteran Franchise Advisers",
+          "allFieldsValid": true,
+          "missingFields": [],
+          "errorNotes": null,
+          "extraction_notes": {
+            "prospect_email_found": true,
+            "prospect_email_source": "body_label",
+            "network_identified": "FBA",
+            "reply_to_available": false
+          }
+        }
+      }
+    ]
+  },
+  "connections": {
+    "IF: All Required Fields Present?": {
+      "main": [
+        [
+          {
+            "node": "Territory Lookup - Placeholder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail Label - Manual Review Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Territory Lookup - Placeholder": {
+      "main": [
+        [
+          {
+            "node": "IF: Territory Available?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: Territory Available?": {
+      "main": [
+        [
+          {
+            "node": "Gmail Send - YES Reply",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gmail Send - NO Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Send - YES Reply": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log YES Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Send - NO Reply": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log NO Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AirTable - Log NO Response": {
+      "main": [
+        [
+          {
+            "node": "Label - Processed-No",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Label - Manual Review Required": {
+      "main": [
+        [
+          {
+            "node": "AirTable - Log Error/Manual Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AirTable - Log YES Response": {
+      "main": [
+        [
+          {
+            "node": "Label - Processed-Yes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Information Extractor",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "-> Territory Checks": {
+      "main": [
+        [
+          {
+            "node": "Extract Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Fields": {
+      "main": [
+        [
+          {
+            "node": "Is Territory Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "7b39a0cb-cba3-45d3-a426-9bb3659de9a5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4a3618b1d61ff75e14c32f7cb70d6f38993326100da48466d26b149497c437dd"
+  },
+  "id": "EAvbHK2C2PVJD6KR",
+  "tags": [
+    {
+      "updatedAt": "2025-05-21T00:25:57.786Z",
+      "createdAt": "2025-05-21T00:25:57.786Z",
+      "id": "5hcZ7EUmra3ehA5v",
+      "name": "TRFA"
+    }
+  ]
+}

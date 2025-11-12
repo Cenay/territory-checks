@@ -1,0 +1,62 @@
+{
+  "name": "Territory Check Automation - Test Build",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "simple": true,
+        "filters": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "position": [
+        250,
+        300
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_territory_check }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "is-territory-check",
+      "name": "Is Territory Check?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        450,
+        300
+      ],
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Is Territory Check?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

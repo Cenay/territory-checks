@@ -1,0 +1,565 @@
+{
+  "name": "Territory Check Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "simple": true,
+        "filters": {}
+      },
+      "id": "gmail-trigger",
+      "name": "Gmail Trigger",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.textPlain || $json.textHtml }}",
+        "schemaType": "fromAttributes",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "is_territory_check",
+              "type": "boolean",
+              "description": "Is this email a territory check request? Look for keywords like 'territory check', 'territory available', 'available territories', franchise consultant names, prospect information, city/state requests."
+            },
+            {
+              "name": "network",
+              "type": "string",
+              "description": "Which network is this from? Options: 'IFPG' (if from IFPG Member), 'FranServe' (if mentions FranServe or franchisesp.com), 'FBA' (if mentions FBA Broker or FBAMembers.com), 'Direct Form' (if from therealfooacademy.com/franchise), 'Unknown'"
+            },
+            {
+              "name": "consultant_first_name",
+              "type": "string",
+              "description": "Consultant's first name. Look for 'Referring Consultant', 'Broker's Name', 'Territory Check from', or form submitter."
+            },
+            {
+              "name": "consultant_last_name",
+              "type": "string",
+              "description": "Consultant's last name"
+            },
+            {
+              "name": "consultant_email",
+              "type": "string",
+              "description": "Consultant's email address. Look for 'Consultant Email', 'Broker's Email', or email in form."
+            },
+            {
+              "name": "consultant_phone",
+              "type": "string",
+              "description": "Consultant's phone number. Look for 'Consultant Phone', 'Broker's Phone Number', or phone in form."
+            },
+            {
+              "name": "prospect_first_name",
+              "type": "string",
+              "description": "Prospect/client first name. Look for 'Prospect:', 'Primary Contact', 'Client's Information', or 'First Name*' in forms."
+            },
+            {
+              "name": "prospect_last_name",
+              "type": "string",
+              "description": "Prospect/client last name"
+            },
+            {
+              "name": "prospect_email",
+              "type": "string",
+              "description": "Prospect's email address"
+            },
+            {
+              "name": "city",
+              "type": "string",
+              "description": "City requested for territory check. Extract from 'Desired Territory', territory request, or City field."
+            },
+            {
+              "name": "state",
+              "type": "string",
+              "description": "State abbreviation (e.g., 'TX', 'AZ', 'NJ'). Extract from territory request or State field."
+            },
+            {
+              "name": "zip_code",
+              "type": "string",
+              "description": "Zip code if mentioned in territory request"
+            },
+            {
+              "name": "territory_notes",
+              "type": "string",
+              "description": "Any additional territory information like 'surrounding areas', 'in between', county, etc."
+            }
+          ]
+        }
+      },
+      "id": "extract-info",
+      "name": "Extract Territory Check Info",
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.is_territory_check }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "is-territory-check",
+      "name": "Is Territory Check?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "getAll",
+        "returnAll": false,
+        "limit": 1,
+        "options": {
+          "email": "={{ $json.consultant_email }}"
+        }
+      },
+      "id": "find-consultant",
+      "name": "Find Consultant in AC",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        850,
+        200
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length || 0 }}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "consultant-exists",
+      "name": "Consultant Exists?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "create",
+        "email": "={{ $('Extract Territory Check Info').item.json.consultant_email }}",
+        "firstName": "={{ $('Extract Territory Check Info').item.json.consultant_first_name }}",
+        "lastName": "={{ $('Extract Territory Check Info').item.json.consultant_last_name }}",
+        "additionalFields": {
+          "phone": "={{ $('Extract Territory Check Info').item.json.consultant_phone }}",
+          "fieldValues": {
+            "fieldValue": [
+              {
+                "fieldId": "CONTACT_NETWORK_FIELD_ID",
+                "fieldValue": "={{ $('Extract Territory Check Info').item.json.network }}"
+              },
+              {
+                "fieldId": "PERSON_TYPE_FIELD_ID",
+                "fieldValue": "Consultant"
+              }
+            ]
+          }
+        }
+      },
+      "id": "create-consultant",
+      "name": "Create Consultant",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contactList",
+        "operation": "add",
+        "contactId": "={{ $json.id }}",
+        "listId": "FRANCHISE_CONSULTANT_LIST_ID"
+      },
+      "id": "add-to-list",
+      "name": "Add to Franchise Consultant List",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contactTag",
+        "operation": "add",
+        "contactId": "={{ $json.id }}",
+        "tagId": "CONSULTANT_TAG_ID"
+      },
+      "id": "add-consultant-tag",
+      "name": "Add Consultant Tag",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1650,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contactTag",
+        "operation": "add",
+        "contactId": "={{ $json.id }}",
+        "tagId": "TERRITORY_CHECK_TAG_ID"
+      },
+      "id": "add-territory-tag",
+      "name": "Add Territory Check Tag",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        1850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "contact",
+        "operation": "update",
+        "contactId": "={{ $json.id || $json[0].id }}",
+        "updateFields": {
+          "fieldValues": {
+            "fieldValue": [
+              {
+                "fieldId": "TERRITORY_CHECKS_FIELD_ID",
+                "fieldValue": "={{ $('Extract Territory Check Info').item.json.city }}, {{ $('Extract Territory Check Info').item.json.state }} - {{ $now.toFormat('yyyy-MM-dd') }}\n{{ $json.field_TERRITORY_CHECKS_FIELD_ID || '' }}"
+              },
+              {
+                "fieldId": "CURRENT_TERRITORY_CHECK_FIELD_ID",
+                "fieldValue": "={{ $('Extract Territory Check Info').item.json.city }}, {{ $('Extract Territory Check Info').item.json.state }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-territory-fields",
+      "name": "Update Territory Check Fields",
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        2050,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "airtableTokenApi",
+        "operation": "search",
+        "base": {
+          "mode": "id",
+          "value": "AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "mode": "id",
+          "value": "TERRITORIES_TABLE_ID"
+        },
+        "filterByFormula": "={State_Abbrev} = '{{ $('Extract Territory Check Info').item.json.state }}'",
+        "resource": "record"
+      },
+      "id": "lookup-territory",
+      "name": "Lookup Territory in Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "// Determine if territory is available\nconst extractedData = $('Extract Territory Check Info').item.json;\nconst airtableData = $input.item.json;\n\nconst isAvailable = airtableData.fields?.Available === true;\nconst percentRemaining = airtableData.fields?.['% Remaining'] || 0;\nconst stateNotes = airtableData.fields?.Notes || '';\n\nconst city = extractedData.city || 'Unknown';\nconst state = extractedData.state || 'Unknown';\nlet territoryRequest = `${city}, ${state}`;\nif (extractedData.territory_notes) {\n  territoryRequest += ` (${extractedData.territory_notes})`;\n}\n\n// Generate response\nlet responseStatus = 'NO';\nlet responseMessage = '';\n\nif (isAvailable) {\n  responseStatus = 'YES';\n  responseMessage = `Great news! The territory in ${territoryRequest} is currently available for The Real Food Academy franchise.\\n\\n`;\n  responseMessage += `We'd love to discuss this opportunity further with your prospect. Please let us know if you'd like to schedule a call or need additional information.`;\n} else {\n  responseStatus = 'NO';\n  responseMessage = `Thank you for your inquiry about ${territoryRequest}. Unfortunately, this territory is not currently available.\\n\\n`;\n  if (stateNotes) {\n    responseMessage += `Additional information: ${stateNotes}\\n\\n`;\n  }\n  responseMessage += `Please feel free to inquire about other territories.`;\n}\n\nreturn {\n  json: {\n    ...extractedData,\n    territory_available: isAvailable,\n    percent_remaining: percentRemaining,\n    response_status: responseStatus,\n    response_message: responseMessage,\n    territory_request: territoryRequest,\n    airtable_territory_id: airtableData.id\n  }\n};"
+      },
+      "id": "generate-response",
+      "name": "Generate Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2450,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "message": "=Hello {{ $json.consultant_first_name }},\n\n{{ $json.response_message }}\n\nBest regards,\nThe Real Food Academy Franchise Team",
+        "options": {}
+      },
+      "id": "send-reply",
+      "name": "Send Reply Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        2650,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "airtableTokenApi",
+        "operation": "create",
+        "base": {
+          "mode": "id",
+          "value": "AIRTABLE_BASE_ID"
+        },
+        "table": {
+          "mode": "id",
+          "value": "FRANCHISE_INQUIRIES_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.toFormat('yyyy-MM-dd') }}",
+            "Network": "={{ $json.network }}",
+            "Consultant": "={{ $json.consultant_first_name }} {{ $json.consultant_last_name }}",
+            "Prospect": "={{ $json.prospect_first_name }} {{ $json.prospect_last_name }}",
+            "City": "={{ $json.city }}",
+            "State": "={{ $json.state }}",
+            "Email_Subject": "={{ $('Gmail Trigger').item.json.subject }}",
+            "Email_Body": "={{ $('Gmail Trigger').item.json.textPlain }}",
+            "Reply_Status": "={{ $json.response_status }}",
+            "Territory": [
+              "={{ $json.airtable_territory_id }}"
+            ]
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "resource": "record"
+      },
+      "id": "log-to-airtable",
+      "name": "Log to Airtable",
+      "type": "n8n-nodes-base.airtable",
+      "typeVersion": 2,
+      "position": [
+        2850,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "addLabels",
+        "messageId": "={{ $('Gmail Trigger').item.json.id }}",
+        "labelIds": [
+          "={{ $('Generate Response').item.json.response_status === 'YES' ? 'LABEL_PROCESSED_YES' : 'LABEL_PROCESSED_NO' }}"
+        ]
+      },
+      "id": "label-email",
+      "name": "Label Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2,
+      "position": [
+        3050,
+        200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Territory Check Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Territory Check Info": {
+      "main": [
+        [
+          {
+            "node": "Is Territory Check?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Territory Check?": {
+      "main": [
+        [
+          {
+            "node": "Find Consultant in AC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Consultant in AC": {
+      "main": [
+        [
+          {
+            "node": "Consultant Exists?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultant Exists?": {
+      "main": [
+        [
+          {
+            "node": "Update Territory Check Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Consultant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Consultant": {
+      "main": [
+        [
+          {
+            "node": "Add to Franchise Consultant List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Franchise Consultant List": {
+      "main": [
+        [
+          {
+            "node": "Add Consultant Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Consultant Tag": {
+      "main": [
+        [
+          {
+            "node": "Add Territory Check Tag",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Territory Check Tag": {
+      "main": [
+        [
+          {
+            "node": "Update Territory Check Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Territory Check Fields": {
+      "main": [
+        [
+          {
+            "node": "Lookup Territory in Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup Territory in Airtable": {
+      "main": [
+        [
+          {
+            "node": "Generate Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Response": {
+      "main": [
+        [
+          {
+            "node": "Send Reply Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Reply Email": {
+      "main": [
+        [
+          {
+            "node": "Log to Airtable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Airtable": {
+      "main": [
+        [
+          {
+            "node": "Label Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "4a3618b1d61ff75e14c32f7cb70d6f38993326100da48466d26b149497c437dd"
+  },
+  "tags": []
+}
