@@ -399,13 +399,96 @@ If your n8n version supports Luxon's `toFormat`:
 - See `docs/LESSONS-LEARNED.md` for all issues encountered and debugging history
 - See `docs/RULES.md` for email parsing rules and patterns
 
+## Accessing Field 180 (Current Territory Check)
+
+Field 180 may not appear in n8n's UI dropdown, but you can access it via API expressions using the same pattern as field 178.
+
+### Reading Field 180 Value
+
+**After your "Get Custom Fields" HTTP Request node:**
+
+```javascript
+$json.fieldValues.find(item => item.field === "180")?.value || ''
+```
+
+**From a specific node:**
+```javascript
+$('Get Custom Fields').item.json.fieldValues.find(item => item.field === "180")?.value || ''
+```
+
+**⚠️ Remember:** Field IDs are strings, use `"180"` not `180`.
+
+### Updating Field 180 (Current Territory Check)
+
+Unlike field 178 (which prepends to history with dates), field 180 should be **replaced** with just the current territory name (no date).
+
+**In ActiveCampaign Update Contact node:**
+
+**Field Values Configuration:**
+```json
+{
+  "fieldValues": {
+    "fieldValue": [
+      {
+        "fieldId": "180",
+        "fieldValue": "={{ $('Extract Fields').item.json.territory_requested }}"
+      }
+    ]
+  }
+}
+```
+
+**Complete expression (territory only, no date):**
+```javascript
+={{ $('Extract Fields').item.json.territory_requested }}
+```
+
+**Or if territory is in current item:**
+```javascript
+={{ $json.territory_requested }}
+```
+
+**Example Output:**
+```
+Woodstock, Savannah, and Macon GA
+```
+
+**Note:** Field 180 contains only the territory name, without date formatting.
+
+### Updating Both Fields 178 and 180 Together
+
+You can update both fields in a single Update Contact node:
+
+```json
+{
+  "fieldValues": {
+    "fieldValue": [
+      {
+        "fieldId": "178",
+        "fieldValue": "={{ $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}\n{{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === \"178\")?.value || '' }}"
+      },
+      {
+        "fieldId": "180",
+        "fieldValue": "={{ $('Extract Fields').item.json.territory_requested }}"
+      }
+    ]
+  }
+}
+```
+
+**Key Differences:**
+- **Field 178** (`Territory Checks`): Prepend new check with date to history (multi-line format: `MM/dd/yyyy Territory Name`)
+- **Field 180** (`Current Territory Check`): Replace with current territory name only (no date, single value)
+
+---
+
 ## Current Status
 
-**Last Updated**: After resolving ActiveCampaign field ID string comparison issue
+**Last Updated**: After adding field 180 (Current Territory Check) access guide
 
 **Current Task**: Territory check field updates working correctly with prepend logic
 
-**Known Issues**: None currently - expression confirmed working
+**Known Issues**: Field 180 doesn't appear in n8n UI dropdown, but accessible via API expressions
 
 **Next Steps**: 
 - Monitor field updates in production

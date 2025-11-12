@@ -6,7 +6,7 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 **Workflow URL**: `https://n8n.trfaapi.com/workflow/gZHoQcN5bTwijo4a`
 
-**Last Completed Task**: ActiveCampaign field 178 update expression working correctly
+**Last Completed Task**: ActiveCampaign fields 178 and 180 update expressions working correctly
 
 **Status**: ✅ All known issues resolved
 
@@ -22,15 +22,24 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ## Quick Reference
 
-### Working ActiveCampaign Field Update Expression
+### Working ActiveCampaign Field Update Expressions
 
+**Field 178 (Territory Checks - History):**
 ```javascript
 ={{ $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
 
 {{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
 ```
 
-**Critical**: Field ID must be string `"178"` not number `178`
+**Field 180 (Current Territory Check - No Date):**
+```javascript
+={{ $('Extract Fields').item.json.territory_requested }}
+```
+
+**Critical**: 
+- Field IDs must be strings: `"178"` and `"180"` not numbers
+- Field 178 includes date, Field 180 is territory name only
+- Field 180 may not appear in n8n UI dropdown but works via API expressions
 
 ### Key Files
 
@@ -42,11 +51,13 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ## Critical Gotchas (Don't Forget!)
 
-1. ⚠️ **ActiveCampaign field IDs are strings** - Use `"178"` not `178`
-2. ⚠️ **Forwarded emails** - Check body first, not headers
-3. ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries
-4. ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
-5. ⚠️ **Gmail trigger** - Manual test returns 1 email (expected behavior)
+1. ⚠️ **ActiveCampaign field IDs are strings** - Use `"178"` and `"180"` not numbers
+2. ⚠️ **Field 178 vs 180** - Field 178 includes date, Field 180 is territory name only
+3. ⚠️ **Field 180 UI limitation** - May not appear in n8n dropdown but accessible via API expressions
+4. ⚠️ **Forwarded emails** - Check body first, not headers
+5. ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries
+6. ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
+7. ⚠️ **Gmail trigger** - Manual test returns 1 email (expected behavior)
 
 ---
 
@@ -58,9 +69,10 @@ This guide helps you quickly resume work on the territory checks workflow.
 3. Test with sample emails from `/docs/`
 
 ### Fix ActiveCampaign Field Access
-1. Check `ACTIVECAMPAIGN-FIELD-GUIDE.md` for working expression
-2. Verify field ID is string `"178"`
+1. Check `ACTIVECAMPAIGN-FIELD-GUIDE.md` for working expressions
+2. Verify field IDs are strings: `"178"` and `"180"` not numbers
 3. Check node names match exactly (case-sensitive)
+4. Note: Field 180 may not appear in n8n UI dropdown but works via API expressions
 
 ### Add New Network Format
 1. Add network detection logic
@@ -73,7 +85,8 @@ This guide helps you quickly resume work on the territory checks workflow.
 ## Testing Checklist
 
 - [ ] Test with real email samples from each network
-- [ ] Verify ActiveCampaign field updates work
+- [ ] Verify ActiveCampaign field 178 updates work (with date)
+- [ ] Verify ActiveCampaign field 180 updates work (territory only, no date)
 - [ ] Check prospect name splitting works
 - [ ] Verify forwarded email extraction
 - [ ] Test edge cases (missing fields, unusual formatting)
@@ -89,5 +102,5 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ---
 
-**Last Updated**: After ActiveCampaign field ID string discovery
+**Last Updated**: After adding field 180 (Current Territory Check) support
 

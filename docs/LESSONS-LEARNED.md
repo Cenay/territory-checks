@@ -503,6 +503,10 @@ $json.fieldValues.find(item => item.field === "178")?.value
 2. **Field values structure**: `fieldValues` is an array, not object
 3. **Update format**: Use `fieldValues.fieldValue` array with `fieldId` and `fieldValue`
 4. **Access pattern**: `$json.fieldValues.find(item => item.field === "178")?.value`
+5. **Field 178 vs Field 180**:
+   - **Field 178** (`Territory Checks`): History field - prepend with date format `MM/dd/yyyy Territory Name`
+   - **Field 180** (`Current Territory Check`): Current field - replace with territory name only (no date)
+6. **n8n UI limitation**: Some fields (like field 180) don't appear in dropdown but are accessible via API expressions
 
 ### n8n Workflow Development
 
