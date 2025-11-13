@@ -320,19 +320,31 @@ For your workflow at `https://n8n.trfaapi.com/workflow/gZHoQcN5bTwijo4a`:
 {{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
 ```
 
+**✅ USING ORIGINAL EMAIL DATE (For Processing Older Emails):**
+If you're processing older forwarded emails, use the extracted date from the forwarded message header:
+```javascript
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+
+{{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
+```
+
 **Key Points:**
 - Field ID must be a **string** `"178"` (with quotes), not number `178` ⚠️ CRITICAL
 - Use an actual line break between the two lines (press Enter) instead of `\n` in n8n expressions
 - This prepends the new territory check with date, then adds existing value below
 - Format: `MM/dd/yyyy Territory Name` on first line, existing entries below
+- **For older emails**: `territory_check_date` contains the date from the forwarded message header (formatted as MM/dd/yyyy), or falls back to today's date if not found
+- The Extract Fields node now provides:
+  - `territory_check_date`: Formatted date (MM/dd/yyyy) from forwarded message, or null if not found
+  - `original_email_date`: Original date string from forwarded message header
 
 **Example Output:**
 ```
-11/11/2025 Woodstock, Savannah, and Macon GA
+11/10/2025 Atlantic County, NJ
 11/3/2025 Cedar Rapids, MI
 ```
 
-**Status**: ✅ This expression was confirmed working after fixing field ID string comparison issue.
+**Status**: ✅ This expression was confirmed working after fixing field ID string comparison issue. Date extraction from forwarded messages added for processing older emails.
 
 ### Method 2: Code Node (Recommended for Complex Formatting)
 
@@ -341,7 +353,8 @@ Create a Code node before your Update Contact node:
 **Code Node:**
 ```javascript
 // Get the new territory check
-const newTerritory = $('Extract Fields').item.json.territory_requested;
+const extractFields = $('Extract Fields').item.json;
+const newTerritory = extractFields.territory_requested;
 
 // Get existing field 178 value - ActiveCampaign returns field IDs as strings
 const getCustomFields = $('Get Custom Fields').item.json;
@@ -352,12 +365,19 @@ const field178 = fieldValues.find(item => item.field === "178");
 
 const existingValue = field178?.value || '';
 
-// Format date as MM/dd/yyyy
-const today = new Date();
-const month = String(today.getMonth() + 1).padStart(2, '0');
-const day = String(today.getDate()).padStart(2, '0');
-const year = today.getFullYear();
-const formattedDate = `${month}/${day}/${year}`;
+// Use extracted date from forwarded message, or fall back to today's date
+let formattedDate;
+if (extractFields.territory_check_date) {
+  // Use date from forwarded message header (already formatted as MM/dd/yyyy)
+  formattedDate = extractFields.territory_check_date;
+} else {
+  // Fallback to today's date
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const year = today.getFullYear();
+  formattedDate = `${month}/${day}/${year}`;
+}
 
 // Build the new value: new check on top, existing below
 const newValue = existingValue 

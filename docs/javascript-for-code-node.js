@@ -40,6 +40,56 @@ if (!replyToEmail) {
   }
 }
 
+// Extract date from forwarded message section for use in Territory Checks field
+// Format: "Date:Mon, 03 Nov 2025 20:52:26 +0000" (no space after colon) or "Date: Mon, 10 Nov 2025 14:56:03 +0000"
+let originalEmailDate = null;
+let formattedTerritoryCheckDate = null;
+
+if (emailBody) {
+  // Try to extract date from forwarded message section
+  // Pattern matches various formats:
+  // - "Date:Mon, 03 Nov 2025 20:52:26 +0000" (no space after colon) - PRIMARY FORMAT
+  // - "Date: Mon, 10 Nov 2025 14:56:03 +0000" (space after colon)
+  // - "AcademyDate: Mon, 10 Nov 2025 14:56:03 +0000" (attached to previous word)
+  const datePatterns = [
+    // Pattern 1: "Date:" followed by optional whitespace, then day name - handles both "Date:Mon" and "Date: Mon"
+    /Date:\s*([A-Za-z]{3},\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})/i,
+    // Pattern 2: Date attached to previous word (like "AcademyDate:")
+    /\w+Date:\s*([A-Za-z]{3},\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})/i
+  ];
+  
+  let dateMatch = null;
+  for (const pattern of datePatterns) {
+    dateMatch = emailBody.match(pattern);
+    if (dateMatch && dateMatch[1]) {
+      break;
+    }
+  }
+  
+  if (dateMatch && dateMatch[1]) {
+    try {
+      // Parse the date string (format: "Mon, 03 Nov 2025 20:52:26 +0000")
+      const dateStr = dateMatch[1].trim();
+      const parsedDate = new Date(dateStr);
+      
+      // Check if date is valid
+      if (!isNaN(parsedDate.getTime())) {
+        originalEmailDate = dateStr;
+        
+        // Format as MM/dd/yyyy for Territory Checks field
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(parsedDate.getDate()).padStart(2, '0');
+        const year = parsedDate.getFullYear();
+        formattedTerritoryCheckDate = `${month}/${day}/${year}`;
+      }
+    } catch (e) {
+      // If parsing fails, leave as null
+      originalEmailDate = null;
+      formattedTerritoryCheckDate = null;
+    }
+  }
+}
+
 // Helper function to extract field with multiple patterns
 function extractField(text, patterns, options = {}) {
   const { returnNull = true, trim = true } = options;
@@ -468,6 +518,10 @@ return {
 
     // Territory
     territory_requested: territoryRequested,
+    
+    // Date information for Territory Checks field
+    original_email_date: originalEmailDate, // Original date string from forwarded message
+    territory_check_date: formattedTerritoryCheckDate, // Formatted as MM/dd/yyyy for ActiveCampaign field 178
 
     // Broker/Consultant information
     consultant_first_name: brokerName ? brokerName.split(' ')[0] : null,
@@ -491,7 +545,9 @@ return {
       prospect_email_found: prospectEmail !== null,
       prospect_email_source: prospectEmail ? 'body_label' : 'not_found',
       network_identified: network,
-      reply_to_available: replyToEmail !== ''
+      reply_to_available: replyToEmail !== '',
+      date_extracted: formattedTerritoryCheckDate !== null,
+      original_date_string: originalEmailDate
     }
   }
 };
