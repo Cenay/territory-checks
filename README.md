@@ -30,19 +30,31 @@ This project processes incoming territory check emails from various consultant n
 
 **Status**: ✅ All known issues resolved
 
+**Latest Updates**:
+- Date extraction from forwarded email headers
+- List-specific field handling (add to lists before updating field 178)
+- Note creation with same format as field 178
+
 ## Features
 
 - Multi-network email parsing (IFPG, TYN, FranServe, FBA, Direct)
 - Automatic prospect and territory extraction
-- ActiveCampaign contact management
+- Date extraction from forwarded email headers for historical accuracy
+- ActiveCampaign contact management with list-specific field handling
 - Territory availability checking via Airtable
 - Automated email replies
-- Territory check history tracking
+- Territory check history tracking (field 178)
+- Current territory tracking (field 180)
+- Note creation for audit trail
 
 ## Critical Gotchas
 
 ⚠️ **ActiveCampaign field IDs are strings** - Use `"178"` not `178`  
+⚠️ **Field 178 is list-specific** - Contact must be on lists 39 & 40 before updating  
+⚠️ **Workflow order matters** - Create → Add to Lists → Update Field 178 → Create Note  
+⚠️ **Date extraction** - Uses `territory_check_date` from forwarded email, falls back to current date  
 ⚠️ **Forwarded emails** - Check body first, not headers  
+⚠️ **Date format variations** - May be "Date:Mon" (no space) not "Date: Mon"  
 ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries  
 ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
 

@@ -275,6 +275,7 @@ When making changes, verify:
 - **v2.5**: Fixed Reply-To email boundary issues
 - **v2.6**: Added TYN "records" pattern support
 - **v2.7**: Fixed IFPG territory extraction to prevent capturing header text - added strict validation, location format requirements, and new Pattern 5
+- **v2.8**: Added date extraction from forwarded email headers for historical accuracy in Territory Checks field
 
 ---
 

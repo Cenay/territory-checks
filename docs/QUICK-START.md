@@ -6,7 +6,7 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 **Workflow URL**: `https://n8n.trfaapi.com/workflow/gZHoQcN5bTwijo4a`
 
-**Last Completed Task**: ActiveCampaign fields 178 and 180 update expressions working correctly
+**Last Completed Task**: Date extraction from forwarded emails, list-specific fields handling, and note creation implemented
 
 **Status**: ✅ All known issues resolved
 
@@ -24,9 +24,9 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ### Working ActiveCampaign Field Update Expressions
 
-**Field 178 (Territory Checks - History):**
+**Field 178 (Territory Checks - History) - Uses Extracted Date:**
 ```javascript
-={{ $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
 
 {{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
 ```
@@ -36,10 +36,17 @@ This guide helps you quickly resume work on the territory checks workflow.
 ={{ $('Extract Fields').item.json.territory_requested }}
 ```
 
+**Note Creation (Same Format as Field 178):**
+```javascript
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+```
+
 **Critical**: 
 - Field IDs must be strings: `"178"` and `"180"` not numbers
-- Field 178 includes date, Field 180 is territory name only
+- Field 178 includes date (extracted from forwarded email or current date), Field 180 is territory name only
 - Field 180 may not appear in n8n UI dropdown but works via API expressions
+- **Field 178 is list-specific** - contact must be on lists 39 & 40 before updating
+- Date extraction: `territory_check_date` contains MM/dd/yyyy format from forwarded email header
 
 ### Key Files
 
@@ -52,12 +59,17 @@ This guide helps you quickly resume work on the territory checks workflow.
 ## Critical Gotchas (Don't Forget!)
 
 1. ⚠️ **ActiveCampaign field IDs are strings** - Use `"178"` and `"180"` not numbers
-2. ⚠️ **Field 178 vs 180** - Field 178 includes date, Field 180 is territory name only
+2. ⚠️ **Field 178 vs 180** - Field 178 includes date (extracted or current), Field 180 is territory name only
 3. ⚠️ **Field 180 UI limitation** - May not appear in n8n dropdown but accessible via API expressions
-4. ⚠️ **Forwarded emails** - Check body first, not headers
-5. ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries
-6. ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
-7. ⚠️ **Gmail trigger** - Manual test returns 1 email (expected behavior)
+4. ⚠️ **Field 178 is list-specific** - Contact MUST be on lists 39 & 40 BEFORE updating field 178
+5. ⚠️ **Workflow order for new contacts** - Create → Add to Lists → Update Field 178 → Create Note
+6. ⚠️ **Date extraction** - Uses `territory_check_date` from forwarded email header, falls back to current date
+7. ⚠️ **Forwarded emails** - Check body first, not headers
+8. ⚠️ **Date format in forwarded emails** - May be "Date:Mon" (no space) not "Date: Mon"
+9. ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries
+10. ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
+11. ⚠️ **Gmail trigger** - Manual test returns 1 email (expected behavior)
+12. ⚠️ **List IDs** - Franchise Consultants = 39, Second list = 40
 
 ---
 
@@ -72,7 +84,9 @@ This guide helps you quickly resume work on the territory checks workflow.
 1. Check `ACTIVECAMPAIGN-FIELD-GUIDE.md` for working expressions
 2. Verify field IDs are strings: `"178"` and `"180"` not numbers
 3. Check node names match exactly (case-sensitive)
-4. Note: Field 180 may not appear in n8n UI dropdown but works via API expressions
+4. **For new contacts**: Ensure contact is added to lists 39 & 40 BEFORE updating field 178
+5. Note: Field 180 may not appear in n8n UI dropdown but works via API expressions
+6. **Date extraction**: Check `extraction_notes.date_extracted` to verify date was found
 
 ### Add New Network Format
 1. Add network detection logic
@@ -85,11 +99,15 @@ This guide helps you quickly resume work on the territory checks workflow.
 ## Testing Checklist
 
 - [ ] Test with real email samples from each network
-- [ ] Verify ActiveCampaign field 178 updates work (with date)
+- [ ] Verify ActiveCampaign field 178 updates work (with extracted date)
 - [ ] Verify ActiveCampaign field 180 updates work (territory only, no date)
+- [ ] **For new contacts**: Verify contact added to lists 39 & 40 before field 178 update
+- [ ] **Date extraction**: Verify `territory_check_date` extracted from forwarded emails
+- [ ] **Notes**: Verify notes created with correct date/territory format
 - [ ] Check prospect name splitting works
-- [ ] Verify forwarded email extraction
+- [ ] Verify forwarded email extraction (Reply-To, date)
 - [ ] Test edge cases (missing fields, unusual formatting)
+- [ ] Test with older forwarded emails to verify date extraction
 
 ---
 
@@ -102,5 +120,11 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ---
 
-**Last Updated**: After adding field 180 (Current Territory Check) support
+**Last Updated**: After adding date extraction, list-specific fields handling, and note creation
+
+**Key Updates**:
+- Date extraction from forwarded email headers
+- List-specific field handling (add to lists before updating field 178)
+- Note creation with same format as field 178
+- List IDs: 39 (Franchise Consultants), 40 (Second list)
 

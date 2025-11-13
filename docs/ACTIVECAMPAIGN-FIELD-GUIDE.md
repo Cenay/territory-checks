@@ -502,16 +502,205 @@ You can update both fields in a single Update Contact node:
 
 ---
 
+---
+
+## Adding Contacts to Lists
+
+### ⚠️ CRITICAL: List-Specific Fields
+
+**IMPORTANT:** Some custom fields (like field 178) are **list-specific** and only available when the contact is on specific lists. 
+
+**Field 178** requires the contact to be on:
+- **List 39** (Franchise Consultants)
+- **List 40** (Second list)
+
+**You MUST add contacts to these lists BEFORE updating field 178**, or the update will fail.
+
+### Workflow Order for New Contacts
+
+When creating a new consultant contact, follow this order:
+
+```
+1. Create Contact (without field 178)
+   ↓
+2. Add to Lists (39 & 40)
+   ↓
+3. Update Field 178 (now accessible)
+   ↓
+4. Create Note (optional)
+```
+
+### Node Configuration: Add to Lists
+
+**Node Type:** `n8n-nodes-base.activeCampaign`  
+**Resource:** `contact`  
+**Operation:** `update`
+
+**Single Node (Adds to Both Lists):**
+```json
+{
+  "resource": "contact",
+  "operation": "update",
+  "contactId": "={{ $json.id }}",
+  "updateFields": {
+    "lists": {
+      "list": [
+        {
+          "list": "39",
+          "status": "1"
+        },
+        {
+          "list": "40",
+          "status": "1"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Alternative: Two Separate Nodes**
+If the single update doesn't work, use two "Contact List" → "Add" nodes:
+
+**Node 1: Add to List 39**
+```json
+{
+  "resource": "contactList",
+  "operation": "add",
+  "listId": "39",
+  "contactId": "={{ $json.id }}"
+}
+```
+
+**Node 2: Add to List 40**
+```json
+{
+  "resource": "contactList",
+  "operation": "add",
+  "listId": "40",
+  "contactId": "={{ $json.id }}"
+}
+```
+
+### Create Contact Node (Updated)
+
+**Remove field 178** from the create node - it will fail if contact isn't on the list yet:
+
+```json
+{
+  "email": "={{ $('Extract Fields').item.json.consultant_email }}",
+  "additionalFields": {
+    "fieldValues": {
+      "property": [
+        {
+          "field": "179",
+          "value": "={{ $('Extract Fields').item.json.consultant_company }}"
+        },
+        {
+          "field": "45",
+          "value": "Consultant"
+        },
+        {
+          "field": "180",
+          "value": "={{ $('Extract Fields').item.json.territory_requested }}"
+        }
+      ]
+    },
+    "firstName": "={{ $('Extract Fields').item.json.consultant_first_name }}",
+    "lastName": "={{ $('Extract Fields').item.json.consultant_last_name }}",
+    "phone": "={{ $('Extract Fields').item.json.consultant_phone }}"
+  }
+}
+```
+
+---
+
+## Creating Notes in ActiveCampaign
+
+### Overview
+
+Create notes in ActiveCampaign with territory check information using the same date/territory format as field 178.
+
+### Node Configuration
+
+**Node Type:** `n8n-nodes-base.activeCampaign`  
+**Resource:** `note`  
+**Operation:** `create`
+
+```json
+{
+  "resource": "note",
+  "operation": "create",
+  "contactId": "={{ $json.id }}",
+  "note": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}"
+}
+```
+
+### Note Format
+
+The note will contain: `11/10/2025 Atlantic County, NJ` (matches field 178 format)
+
+- Uses extracted date from forwarded email if available
+- Falls back to current date if extraction fails
+- Same format as field 178 for consistency
+
+### Placement
+
+Add the note node **after** updating field 178 in both workflow paths:
+- **Existing contacts:** After "Update a contact" node
+- **New contacts:** After "Update Field 178" node
+
+---
+
+## Date Extraction from Forwarded Emails
+
+### Overview
+
+The Extract Fields node now extracts the date from forwarded email headers and formats it for use in field 178 and notes.
+
+### Extracted Fields
+
+The Extract Fields node provides:
+- `territory_check_date`: Formatted date (MM/dd/yyyy) from forwarded message, or `null` if not found
+- `original_email_date`: Original date string from forwarded message header (e.g., "Mon, 10 Nov 2025 14:56:03 +0000")
+
+### Debug Fields
+
+Check extraction status:
+- `extraction_notes.date_extracted`: `true` if date was found, `false` otherwise
+- `extraction_notes.original_date_string`: Raw date string if found
+
+### Date Format Patterns
+
+The extraction handles multiple formats:
+- `Date:Mon, 03 Nov 2025 20:52:26 +0000` (no space after colon) - PRIMARY FORMAT
+- `Date: Mon, 10 Nov 2025 14:56:03 +0000` (space after colon)
+- `AcademyDate: Mon, 10 Nov 2025 14:56:03 +0000` (attached to previous word)
+
+### Usage in Expressions
+
+Always use with fallback to current date:
+```javascript
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+```
+
+---
+
 ## Current Status
 
-**Last Updated**: After adding field 180 (Current Territory Check) access guide
+**Last Updated**: After adding date extraction, list-specific fields handling, and note creation
 
-**Current Task**: Territory check field updates working correctly with prepend logic
+**Current Task**: All territory check workflow features working correctly
 
-**Known Issues**: Field 180 doesn't appear in n8n UI dropdown, but accessible via API expressions
+**Known Issues**: 
+- Field 180 doesn't appear in n8n UI dropdown but accessible via API expressions
+- Field 178 requires contact to be on lists 39 and 40 before updating
+
+**List IDs**:
+- Franchise Consultants: **39**
+- Second List: **40**
 
 **Next Steps**: 
-- Monitor field updates in production
-- Consider adding Code node for more complex formatting if needed
-- Document any edge cases discovered in production
+- Monitor workflow in production
+- Document any edge cases discovered
 

@@ -256,6 +256,142 @@ const formattedDate = `${month}/${day}/${year}`;
 
 ---
 
+### Issue 10: Date Extraction from Forwarded Emails for Territory Checks Field
+
+**Status**: ✅ Resolved
+
+**Problem**: When processing older forwarded emails, the Territory Checks field (178) was using today's date instead of the original email date from the forwarded message header.
+
+**Root Cause**: The workflow was using `$now.toFormat('MM/dd/yyyy')` which always uses the current date, not the date from the forwarded email.
+
+**Solution**: Added date extraction from forwarded message headers in the email body:
+1. Extract date from patterns like "Date:Mon, 03 Nov 2025 20:52:26 +0000" (no space after colon)
+2. Parse the date string using JavaScript `new Date()`
+3. Format as MM/dd/yyyy for consistency with field 178 format
+4. Return `territory_check_date` in Extract Fields output
+5. Update ActiveCampaign expression to use extracted date with fallback
+
+**Key Changes**:
+```javascript
+// Date extraction patterns
+/Date:\s*([A-Za-z]{3},\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})/i
+/\w+Date:\s*([A-Za-z]{3},\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})/i
+
+// Format as MM/dd/yyyy
+const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+const day = String(parsedDate.getDate()).padStart(2, '0');
+const year = parsedDate.getFullYear();
+formattedTerritoryCheckDate = `${month}/${day}/${year}`;
+```
+
+**Updated ActiveCampaign Expression**:
+```javascript
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+
+{{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
+```
+
+**Files Changed**: `docs/javascript-for-code-node.js`, `docs/ACTIVECAMPAIGN-FIELD-GUIDE.md`
+
+**Lesson Learned**: 
+- Always extract dates from forwarded message headers when processing historical emails
+- Date format in forwarded messages may have no space after colon: "Date:Mon" not "Date: Mon"
+- Use fallback to current date if extraction fails
+- Debug fields (`date_extracted`, `original_date_string`) help troubleshoot extraction issues
+
+---
+
+### Issue 11: List-Specific Custom Fields Fail When Contact Not on List
+
+**Status**: ✅ Resolved
+
+**Problem**: When creating a new consultant contact, updating field 178 (Territory Checks) failed with an error because the field is only available when the contact is on the "Franchise Consultants" list (ID 39).
+
+**Root Cause**: ActiveCampaign custom fields can be list-specific. Field 178 is only accessible when the contact is on list 39. Attempting to update it before adding the contact to the list causes the API call to fail.
+
+**Solution**: Reorder workflow operations:
+1. **Create contact** (without field 178)
+2. **Add contact to lists** (39 and 40) 
+3. **Update field 178** (now accessible because contact is on list)
+
+**Workflow Structure**:
+```
+Create a contact
+    ↓
+Add to Consultant Lists (lists 39 & 40)
+    ↓
+Update Field 178
+```
+
+**Node Configuration - Add to Lists**:
+```json
+{
+  "resource": "contact",
+  "operation": "update",
+  "contactId": "={{ $json.id }}",
+  "updateFields": {
+    "lists": {
+      "list": [
+        {
+          "list": "39",
+          "status": "1"
+        },
+        {
+          "list": "40",
+          "status": "1"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Alternative (Two Separate Nodes)**:
+If single update doesn't work, use two "Contact List" → "Add" nodes:
+- Node 1: Add to list 39
+- Node 2: Add to list 40
+
+**Files Changed**: Workflow JSON, `docs/ACTIVECAMPAIGN-FIELD-GUIDE.md`
+
+**Lesson Learned**:
+- **CRITICAL**: Always check if custom fields are list-specific before updating them
+- Add contacts to required lists BEFORE updating list-specific fields
+- Test field access after list addition to confirm availability
+- Some fields may not appear in n8n UI dropdown but are accessible via API after list addition
+
+---
+
+### Issue 12: Creating Notes in ActiveCampaign for Territory Checks
+
+**Status**: ✅ Resolved
+
+**Problem**: Need to create a note in ActiveCampaign with the territory check information in the same format as field 178 (date + territory).
+
+**Solution**: Add a Note creation node after updating field 178. The note uses the same date extraction logic and format.
+
+**Node Configuration**:
+```json
+{
+  "resource": "note",
+  "operation": "create",
+  "contactId": "={{ $json.id }}",
+  "note": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}"
+}
+```
+
+**Note Format**: `11/10/2025 Atlantic County, NJ` (matches field 178 format)
+
+**Placement**: After "Update Field 178" node in both workflow paths (existing and new contacts)
+
+**Files Changed**: Workflow JSON, `docs/ACTIVECAMPAIGN-FIELD-GUIDE.md`
+
+**Lesson Learned**:
+- Notes can be created using the same date/territory format as custom fields
+- Notes are useful for audit trails and quick reference
+- Use the same date extraction logic for consistency across all ActiveCampaign data
+
+---
+
 ### Issue 5: Prospect First/Last Name Blank Despite Prospect Name Existing
 
 **Status**: ✅ Resolved
@@ -545,6 +681,10 @@ $json.fieldValues.find(item => item.field === "178")?.value
    - **Field 178** (`Territory Checks`): History field - prepend with date format `MM/dd/yyyy Territory Name`
    - **Field 180** (`Current Territory Check`): Current field - replace with territory name only (no date)
 6. **n8n UI limitation**: Some fields (like field 180) don't appear in dropdown but are accessible via API expressions
+7. **List-specific fields**: Some custom fields (like field 178) are only available when contact is on specific lists - add to lists BEFORE updating these fields
+8. **Date extraction**: Extract dates from forwarded email headers for historical accuracy - use `territory_check_date` with fallback to current date
+9. **Notes creation**: Create notes using same date/territory format as custom fields for consistency
+10. **List IDs**: Franchise Consultants list = 39, Second list = 40
 
 ### n8n Workflow Development
 
@@ -564,6 +704,8 @@ $json.fieldValues.find(item => item.field === "178")?.value
 6. **Validate extracted text**: Check that captured text looks like expected format (e.g., location must contain comma or state abbreviation)
 7. **Exclude header keywords**: Filter out known unwanted patterns anywhere in captured string, not just at start
 8. **Multiple fallback patterns**: Use increasingly specific patterns with validation at each level
+9. **Date extraction patterns**: Handle both "Date:Mon" (no space) and "Date: Mon" (with space) formats
+10. **Date parsing**: Use JavaScript `new Date()` for reliable parsing, validate with `isNaN(parsedDate.getTime())`
 
 ---
 
@@ -730,49 +872,88 @@ $json.fieldValues.find(item => item.field === "178")?.value
 
 ### Where We Left Off
 
-**Last Task Completed**: ActiveCampaign field 178 update expression working correctly
+**Last Task Completed**: Date extraction from forwarded emails, list-specific fields handling, and note creation implemented
 
-**Working Expression** (Confirmed):
+**Working Expression for Field 178** (Confirmed - Uses Extracted Date):
 ```javascript
-={{ $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
 
 {{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === "178")?.value || '' }}
+```
+
+**Working Expression for Note Creation**:
+```javascript
+={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
 ```
 
 **Key Points**:
 - Field ID must be string `"178"` not number `178`
 - Use actual line break (Enter) not `\n`
 - Prepends new territory check with date, existing values below
+- **Date extraction**: Uses `territory_check_date` from forwarded email header, falls back to current date
+- **List-specific fields**: Field 178 requires contact on lists 39 & 40 before updating
+- **Workflow order**: Create → Add to Lists → Update Field 178 → Create Note
 
 **Current Workflow**: `https://n8n.trfaapi.com/workflow/gZHoQcN5bTwijo4a`
 
-**Status**: ✅ Territory check field updates working correctly
+**Status**: ✅ All territory check workflow features working correctly
 
 ### To Resume Work
 
 1. **Review this document** - Understand all issues and solutions
-2. **Check ACTIVECAMPAIGN-FIELD-GUIDE.md** - For current working expressions
+2. **Check ACTIVECAMPAIGN-FIELD-GUIDE.md** - For current working expressions, list handling, and note creation
 3. **Review RULES.md** - Before making any parsing changes
 4. **Test with sample data** - Use files in `/docs/*-json-from-gmail.json`
 5. **Verify field updates** - Check ActiveCampaign field 178 after updates
+6. **Check date extraction** - Verify `extraction_notes.date_extracted` is `true` for forwarded emails
+7. **Verify list addition** - For new contacts, ensure added to lists 39 & 40 before field 178 update
 
 ### Known Working Solutions
 
 - ✅ Email parsing: See `javascript-for-code-node.js`
+- ✅ Date extraction: Extracts from forwarded email headers, formats as MM/dd/yyyy
 - ✅ ActiveCampaign field access: See `ACTIVECAMPAIGN-FIELD-GUIDE.md` Method 1
+- ✅ List-specific fields: Add to lists 39 & 40 before updating field 178
+- ✅ Note creation: Uses same date/territory format as field 178
 - ✅ Territory extraction: See `RULES.md` network-specific rules
 - ✅ Prospect name splitting: Automatic for all networks
+
+### Critical Workflow Requirements
+
+**For New Contacts**:
+1. Create contact (without field 178)
+2. Add to lists 39 & 40
+3. Update field 178 (now accessible)
+4. Create note (optional)
+
+**For Existing Contacts**:
+1. Get custom fields
+2. Update field 178 & 180
+3. Create note (optional)
 
 ### Common Next Steps
 
 - Monitor production field updates
+- Verify date extraction working for older emails
+- Test list addition and field 178 update sequence
 - Add new network formats if discovered
 - Enhance territory extraction patterns
 - Add validation or error handling
 
+### List IDs
+
+- **List 39**: Franchise Consultants
+- **List 40**: Second list
+
+### Debug Fields
+
+Check `extraction_notes` in Extract Fields output:
+- `date_extracted`: `true` if date found, `false` otherwise
+- `original_date_string`: Raw date string from forwarded email
+
 ---
 
-**Last Updated**: Based on conversation history through ActiveCampaign field ID string discovery and confirmed working expression
+**Last Updated**: After implementing date extraction, list-specific fields handling, and note creation
 
 **Maintained By**: Review and update when new issues or learnings are discovered
 
