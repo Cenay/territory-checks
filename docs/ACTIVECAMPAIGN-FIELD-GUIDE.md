@@ -32,14 +32,14 @@ When you call the ActiveCampaign API directly using HTTP Request node (`GET /api
     {
       "field": 178,
       "value": "11/03/2025 Woodstock, Savannah, and Macon GA 30188",
-      "contact": 11561,
+      "contact": CONTACT_ID,
       "cdate": "2025-09-25T15:09:37-05:00",
       "udate": "2025-09-25T15:09:37-05:00"
     },
     {
       "field": 180,
       "value": "Some other value",
-      "contact": 11561
+      "contact": CONTACT_ID
     }
   ]
 }

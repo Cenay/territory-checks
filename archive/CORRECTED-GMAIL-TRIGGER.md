@@ -49,6 +49,6 @@ Based on your existing "Franchise Territory Checks first draft - fail" workflow,
 ## Your Existing Credentials:
 Your working workflow uses:
 - **Credential Name:** "Gmail (FranchiseTRFA)"
-- **Credential ID:** w4vtE8fEEGHrj6S2
+- **Credential ID:** YOUR_CREDENTIAL_ID (replace with your actual credential ID)
 
 You can reuse this same credential for the new workflow.

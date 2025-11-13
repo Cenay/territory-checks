@@ -26,7 +26,7 @@
       ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "w4vtE8fEEGHrj6S2",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "Gmail (FranchiseTRFA)"
         }
       },
@@ -99,7 +99,7 @@
       "alwaysOutputData": true,
       "credentials": {
         "activeCampaignApi": {
-          "id": "3gDvz1re0qYvBjM5",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "ActiveCampaign (API)"
         }
       }
@@ -140,7 +140,7 @@
     },
     {
       "parameters": {
-        "url": "=https://trfa.api-us1.com/api/3/contacts/{{ $json.id }}/fieldValues",
+        "url": "=https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/{{ $json.id }}/fieldValues",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "activeCampaignApi",
         "options": {
@@ -161,7 +161,7 @@
       "name": "Get Custom Fields",
       "credentials": {
         "activeCampaignApi": {
-          "id": "3gDvz1re0qYvBjM5",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "ActiveCampaign (API)"
         }
       }
@@ -209,7 +209,7 @@
       "name": "Update a contact",
       "credentials": {
         "activeCampaignApi": {
-          "id": "3gDvz1re0qYvBjM5",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "ActiveCampaign (API)"
         }
       }
@@ -268,7 +268,7 @@
       "name": "Create a contact",
       "credentials": {
         "activeCampaignApi": {
-          "id": "3gDvz1re0qYvBjM5",
+          "id": "YOUR_CREDENTIAL_ID",
           "name": "ActiveCampaign (API)"
         }
       }
@@ -288,8 +288,8 @@
               "created_by": null,
               "updated_by": null,
               "links": {
-                "owner": "https://trfa.api-us1.com/api/3/fieldValues/151728/owner",
-                "field": "https://trfa.api-us1.com/api/3/fieldValues/151728/field"
+                "owner": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/owner",
+                "field": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/field"
               },
               "id": "151728",
               "owner": "11610"
@@ -303,8 +303,8 @@
               "created_by": null,
               "updated_by": null,
               "links": {
-                "owner": "https://trfa.api-us1.com/api/3/fieldValues/151729/owner",
-                "field": "https://trfa.api-us1.com/api/3/fieldValues/151729/field"
+                "owner": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/owner",
+                "field": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/field"
               },
               "id": "151729",
               "owner": "11610"
@@ -318,8 +318,8 @@
               "created_by": null,
               "updated_by": null,
               "links": {
-                "owner": "https://trfa.api-us1.com/api/3/fieldValues/151733/owner",
-                "field": "https://trfa.api-us1.com/api/3/fieldValues/151733/field"
+                "owner": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/owner",
+                "field": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/field"
               },
               "id": "151733",
               "owner": "11610"
@@ -333,8 +333,8 @@
               "created_by": "0",
               "updated_by": "0",
               "links": {
-                "owner": "https://trfa.api-us1.com/api/3/fieldValues/159531/owner",
-                "field": "https://trfa.api-us1.com/api/3/fieldValues/159531/field"
+                "owner": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/owner",
+                "field": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/field"
               },
               "id": "159531",
               "owner": "11610"
@@ -348,8 +348,8 @@
               "created_by": "0",
               "updated_by": "0",
               "links": {
-                "owner": "https://trfa.api-us1.com/api/3/fieldValues/159532/owner",
-                "field": "https://trfa.api-us1.com/api/3/fieldValues/159532/field"
+                "owner": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/owner",
+                "field": "https://YOUR_ACCOUNT.api-us1.com/api/3/fieldValues/FIELD_VALUE_ID/field"
               },
               "id": "159532",
               "owner": "11610"
@@ -494,24 +494,24 @@
           "orgid": "0",
           "orgname": "",
           "links": {
-            "bounceLogs": "https://trfa.api-us1.com/api/3/contacts/11926/bounceLogs",
-            "contactAutomations": "https://trfa.api-us1.com/api/3/contacts/11926/contactAutomations?limit=2500&orders%5Blastdate%5D=DESC",
-            "contactData": "https://trfa.api-us1.com/api/3/contacts/11926/contactData",
-            "contactGoals": "https://trfa.api-us1.com/api/3/contacts/11926/contactGoals",
-            "contactLists": "https://trfa.api-us1.com/api/3/contacts/11926/contactLists",
-            "contactLogs": "https://trfa.api-us1.com/api/3/contacts/11926/contactLogs",
-            "contactTags": "https://trfa.api-us1.com/api/3/contacts/11926/contactTags",
-            "contactDeals": "https://trfa.api-us1.com/api/3/contacts/11926/contactDeals",
-            "deals": "https://trfa.api-us1.com/api/3/contacts/11926/deals",
-            "fieldValues": "https://trfa.api-us1.com/api/3/contacts/11926/fieldValues",
-            "geoIps": "https://trfa.api-us1.com/api/3/contacts/11926/geoIps",
-            "notes": "https://trfa.api-us1.com/api/3/contacts/11926/notes",
-            "organization": "https://trfa.api-us1.com/api/3/contacts/11926/organization",
-            "plusAppend": "https://trfa.api-us1.com/api/3/contacts/11926/plusAppend",
-            "trackingLogs": "https://trfa.api-us1.com/api/3/contacts/11926/trackingLogs",
-            "scoreValues": "https://trfa.api-us1.com/api/3/contacts/11926/scoreValues",
-            "accountContacts": "https://trfa.api-us1.com/api/3/contacts/11926/accountContacts",
-            "automationEntryCounts": "https://trfa.api-us1.com/api/3/contacts/11926/automationEntryCounts"
+            "bounceLogs": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/bounceLogs",
+            "contactAutomations": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactAutomations?limit=2500&orders%5Blastdate%5D=DESC",
+            "contactData": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactData",
+            "contactGoals": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactGoals",
+            "contactLists": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactLists",
+            "contactLogs": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactLogs",
+            "contactTags": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactTags",
+            "contactDeals": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/contactDeals",
+            "deals": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/deals",
+            "fieldValues": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/fieldValues",
+            "geoIps": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/geoIps",
+            "notes": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/notes",
+            "organization": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/organization",
+            "plusAppend": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/plusAppend",
+            "trackingLogs": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/trackingLogs",
+            "scoreValues": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/scoreValues",
+            "accountContacts": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/accountContacts",
+            "automationEntryCounts": "https://YOUR_ACCOUNT.api-us1.com/api/3/contacts/CONTACT_ID/automationEntryCounts"
           },
           "fieldValues": [
             "161920",
@@ -519,7 +519,7 @@
             "161922",
             "161923"
           ],
-          "id": "11926",
+          "id": "CONTACT_ID",
           "organization": null
         }
       }
