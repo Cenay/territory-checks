@@ -218,6 +218,44 @@ const formattedDate = `${month}/${day}/${year}`;
 
 ---
 
+### Issue 9: IFPG Territory Extraction Captured Header Text Instead of Territory Name
+
+**Status**: ✅ Resolved
+
+**Problem**: Territory extraction for IFPG emails captured "Territory Check from IFPG Member Josh Sabo for The Real Food" instead of the actual territory "Atlantic County, NJ". This resulted in ActiveCampaign field 178 containing header text instead of the territory name.
+
+**Root Cause**: Pattern 4 (flexibleMatch) was too permissive and could match same-line text without requiring newlines. The pattern could capture header text like "for The Real Food Academy" when the territory appeared on a new line after the colon.
+
+**Solution**: 
+1. **Pattern 3**: Added stricter validation to exclude header keywords including "for The Real Food", "IFPG Member", and "Territory Check"
+2. **Pattern 4**: Changed from `\s*` to `\n+\s*` to require at least one newline after the colon, preventing same-line matches. Added location validation requiring captured text to contain a comma or state abbreviation (e.g., "NJ", "CA")
+3. **Pattern 5**: Added new fallback pattern specifically for "for The Real Food Academy:" format with location validation
+
+**Key Changes**:
+```javascript
+// Pattern 3: Stricter validation
+!captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i)
+!captured.includes('for The Real Food')
+
+// Pattern 4: Require newlines and location format
+/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i
+// Validation: Must contain comma OR state abbreviation
+(captured.includes(',') || captured.match(/\b[A-Z]{2}\b/))
+
+// Pattern 5: New fallback for "for The Real Food Academy:" format
+/for The Real Food Academy:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i
+```
+
+**Files Changed**: `docs/javascript-for-code-node.js`, `docs/RULES.md`
+
+**Lesson Learned**: When extracting territory from emails with header text, always:
+- Require newlines (`\n+`) after colons to prevent same-line matches
+- Validate that captured text looks like a location (contains comma or state abbreviation)
+- Check for header keywords anywhere in the captured string, not just at the start
+- Use multiple fallback patterns with increasing specificity
+
+---
+
 ### Issue 5: Prospect First/Last Name Blank Despite Prospect Name Existing
 
 **Status**: ✅ Resolved
@@ -522,6 +560,10 @@ $json.fieldValues.find(item => item.field === "178")?.value
 2. **Explicit boundaries**: Add stop conditions like `(?:\s+for|$)`
 3. **Case insensitive**: Always use `/i` flag
 4. **Test edge cases**: Patterns that work for one email may fail for another
+5. **Require newlines for multi-line patterns**: Use `\n+\s*` instead of `\s*` to prevent same-line matches
+6. **Validate extracted text**: Check that captured text looks like expected format (e.g., location must contain comma or state abbreviation)
+7. **Exclude header keywords**: Filter out known unwanted patterns anywhere in captured string, not just at start
+8. **Multiple fallback patterns**: Use increasingly specific patterns with validation at each level
 
 ---
 

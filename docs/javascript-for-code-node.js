@@ -244,21 +244,48 @@ if (network === 'FBA') {
     } else {
       // Pattern 3: Territory on line after "Territory Check from [Name] for The Real Food Academy:"
       // This pattern handles the format: "Territory Check from [Name] for The Real Food Academy:\n\n[Territory]"
+      // IMPORTANT: Must have at least one newline after the colon to avoid capturing header text
       const territoryLineMatch = fullText.match(/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+?)(?:\n|CLICK|$)/i);
       if (territoryLineMatch) {
         const captured = territoryLineMatch[1].trim();
         // Make sure we didn't capture "for The Real Food Academy" or other unwanted text
-        if (captured && !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox)/i) && captured.length > 2) {
+        // Also exclude any text that contains "for The Real Food" or "IFPG Member" as these are header text
+        if (captured && 
+            !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&
+            !captured.includes('for The Real Food') &&
+            captured.length > 2) {
           territoryRequested = captured;
         }
       }
       
-      // Pattern 4: If still not found, try a more flexible pattern that handles same-line format
+      // Pattern 4: More specific pattern - only match if there's a clear territory pattern after the colon
+      // This pattern requires the territory to look like a location (contains comma or state abbreviation)
       if (!territoryRequested) {
-        const flexibleMatch = fullText.match(/Territory Check from [^:]+:\s*([A-Za-z\s,]+?)(?:\n|CLICK|$)/i);
+        const flexibleMatch = fullText.match(/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i);
         if (flexibleMatch) {
           const captured = flexibleMatch[1].trim();
-          if (captured && !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox)/i) && captured.length > 2) {
+          // Strict validation: must not contain header keywords and must look like a location
+          if (captured && 
+              !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&
+              !captured.includes('for The Real Food') &&
+              (captured.includes(',') || captured.match(/\b[A-Z]{2}\b/)) && // Must contain comma or state abbreviation
+              captured.length > 2) {
+            territoryRequested = captured;
+          }
+        }
+      }
+      
+      // Pattern 5: Fallback - Look for territory pattern that appears after "for The Real Food Academy:" 
+      // This is the most common IFPG format: "Territory Check from [Name] for The Real Food Academy:\n\n[Territory]"
+      if (!territoryRequested) {
+        const academyMatch = fullText.match(/for The Real Food Academy:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i);
+        if (academyMatch) {
+          const captured = academyMatch[1].trim();
+          // Must look like a location (contains comma or state abbreviation) and not be header text
+          if (captured && 
+              !captured.match(/^(Territory Check|IFPG Member|Prospect Name|CLICK|http|mailbox)/i) &&
+              (captured.includes(',') || captured.match(/\b[A-Z]{2}\b/)) &&
+              captured.length > 2) {
             territoryRequested = captured;
           }
         }

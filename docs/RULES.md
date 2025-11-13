@@ -65,10 +65,23 @@ This document captures all rules, patterns, and edge cases discovered during dev
    - Pattern: `/Tcheck for[:\s]+([^(\n]+?)(?:\s*\(zip|\s*-\s*if|\n|CLICK|$)/i`
    - Stops before "(zip", "- if", newline, or "CLICK"
 3. **Pattern 3**: Territory on line after "Territory Check from [Name] for The Real Food Academy:"
-   - Must filter out: "for The Real Food Academy", "Prospect Name", "CLICK", "http", "mailbox"
-4. **Pattern 4**: Fallback flexible pattern for same-line format
+   - **CRITICAL**: Must have at least one newline (`\n+`) after the colon to avoid capturing header text
+   - Pattern: `/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+?)(?:\n|CLICK|$)/i`
+   - Must filter out: "for The Real Food Academy", "Prospect Name", "CLICK", "http", "mailbox", "IFPG Member", "Territory Check"
+   - Also excludes any text containing "for The Real Food" anywhere in the captured string
+4. **Pattern 4**: More specific fallback pattern requiring location-like format
+   - **CRITICAL**: Requires at least one newline after colon (`\n+\s*`)
+   - Pattern: `/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i`
+   - Must look like a location: contains comma OR state abbreviation (e.g., "NJ", "CA")
+   - Must exclude header keywords: "for The Real Food Academy", "IFPG Member", "Territory Check", etc.
+5. **Pattern 5**: Specific pattern for "for The Real Food Academy:" format
+   - Pattern: `/for The Real Food Academy:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i`
+   - Must look like a location (contains comma or state abbreviation)
+   - Must exclude header keywords
 
 **Example**: "Prospect Name: Zeba Huque -- Tcheck for: Woodstock, Savannah, and Macon GA (zip 30188)" → "Woodstock, Savannah, and Macon GA"
+
+**Example**: "Territory Check from Josh Sabo for The Real Food Academy:\n\nAtlantic County, NJ" → "Atlantic County, NJ" (NOT "Territory Check from IFPG Member Josh Sabo for The Real Food")
 
 #### Prospect Name Extraction
 **Rule**: Extract from "Candidate: [Name]" pattern.
@@ -184,8 +197,19 @@ This document captures all rules, patterns, and edge cases discovered during dev
 // IFPG "Tcheck for" format
 /Tcheck for[:\s]+([^(\n]+?)(?:\s*\(zip|\s*-\s*if|\n|CLICK|$)/i
 
-// IFPG line-after-colon format
+// IFPG line-after-colon format (Pattern 3)
+// CRITICAL: Must have newlines after colon to avoid capturing header text
 /Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+?)(?:\n|CLICK|$)/i
+// Validation: Exclude "for The Real Food Academy", "IFPG Member", "Territory Check"
+
+// IFPG flexible pattern with location validation (Pattern 4)
+// CRITICAL: Requires newlines and location-like format (comma or state abbreviation)
+/Territory Check from [^:]+:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i
+// Validation: Must contain comma OR state abbreviation, exclude header keywords
+
+// IFPG "for The Real Food Academy:" pattern (Pattern 5)
+/for The Real Food Academy:\s*\n+\s*([A-Za-z\s,]+(?:,\s*[A-Z]{2})?[A-Za-z\s,]*?)(?:\n|CLICK|$)/i
+// Validation: Must look like location, exclude header keywords
 ```
 
 ---
@@ -214,8 +238,12 @@ This document captures all rules, patterns, and edge cases discovered during dev
 **Solution**: Always split `prospect_name` if first/last are missing (applies to all networks).
 
 ### 6. Filtering Unwanted Text
-**Problem**: Territory extraction captures "for The Real Food Academy" or other unwanted text.
-**Solution**: Always filter out known unwanted patterns: "for The Real Food Academy", "Prospect Name", "CLICK", "http", "mailbox"
+**Problem**: Territory extraction captures "for The Real Food Academy" or other unwanted text like "Territory Check from IFPG Member Josh Sabo for The Real Food".
+**Solution**: 
+- Always filter out known unwanted patterns: "for The Real Food Academy", "Prospect Name", "CLICK", "http", "mailbox", "IFPG Member", "Territory Check"
+- Require newlines (`\n+`) after colons in patterns to prevent same-line matches
+- Validate that captured text looks like a location (contains comma or state abbreviation)
+- Check for "for The Real Food" anywhere in captured string, not just at start
 
 ---
 
@@ -224,7 +252,11 @@ This document captures all rules, patterns, and edge cases discovered during dev
 When making changes, verify:
 - [ ] IFPG consultant name stops before "for Multiple Franchises"
 - [ ] IFPG territory extracts from "Tcheck for:" format
-- [ ] IFPG territory extracts from line-after-colon format
+- [ ] IFPG territory extracts from line-after-colon format (Pattern 3)
+- [ ] IFPG territory does NOT capture header text like "Territory Check from IFPG Member [Name] for The Real Food"
+- [ ] IFPG territory validation excludes "for The Real Food", "IFPG Member", "Territory Check" keywords
+- [ ] IFPG territory patterns require newlines after colons (not same-line matches)
+- [ ] IFPG territory captured text looks like a location (contains comma or state abbreviation)
 - [ ] Reply-To email doesn't include "To:" text
 - [ ] Prospect name is split into first/last when only full name exists
 - [ ] TYN prospect name handles both "files" and "records"
@@ -242,6 +274,7 @@ When making changes, verify:
 - **v2.4**: Added prospect name splitting for all networks
 - **v2.5**: Fixed Reply-To email boundary issues
 - **v2.6**: Added TYN "records" pattern support
+- **v2.7**: Fixed IFPG territory extraction to prevent capturing header text - added strict validation, location format requirements, and new Pattern 5
 
 ---
 
