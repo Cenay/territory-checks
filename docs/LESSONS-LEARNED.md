@@ -369,15 +369,44 @@ If single update doesn't work, use two "Contact List" → "Add" nodes:
 
 **Solution**: Add a Note creation node after updating field 178. The note uses the same date extraction logic and format.
 
-**Node Configuration**:
+**Node Configuration** (HTTP Request Node):
 ```json
 {
-  "resource": "note",
-  "operation": "create",
-  "contactId": "={{ $json.id }}",
-  "note": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}"
+  "method": "POST",
+  "url": "https://YOUR_ACCOUNT.api-us1.com/api/3/notes",
+  "authentication": "headerAuth",
+  "headerParameters": {
+    "Api-Token": "YOUR_ACTIVECAMPAIGN_API_KEY"
+  },
+  "jsonBody": {
+    "note": {
+      "note": "{{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}",
+      "reltype": "Subscriber",
+      "relid": "{{ String($('Create a contact').item.json.id) }}"
+    }
+  }
 }
 ```
+
+**⚠️ CRITICAL:** When "Specify Body" is set to "Using JSON", expressions use `{{ }}` WITHOUT the `=` sign!
+
+**Note:** The ActiveCampaign node in n8n does not have a "note" resource, so HTTP Request node must be used.
+
+**Common Errors:**
+- **422 Error - reltype invalid:**
+  - **Cause:** Using `"reltype": "contact"` instead of `"reltype": "Subscriber"`
+  - **Fix:** Change to `"reltype": "Subscriber"` - ActiveCampaign API uses "Subscriber" for contacts
+  - Valid values: `Deal`, `Subscriber`, `DealTask`, `Activity`, `CustomerAccount`
+- **422 Error - contact_not_exist:**
+  - **Cause:** Contact ID doesn't exist or wrong reference
+  - **Fix:** Use `$('Create a contact').item.json.id` for new contacts, ensure `String()` wrapper
+- **Expression syntax error:**
+  - **Cause:** Using `={{ }}` in JSON body when "Using JSON" is selected
+  - **Fix:** Use `{{ }}` WITHOUT `=` sign - the `=` is only for direct expression fields, not JSON body
+- **400 Bad Request:**
+  - **Cause:** `relid` must be a string, not a number
+  - **Fix:** Use `String($json.id)` instead of `$json.id`
+  - **Also ensure:** `Content-Type: application/json` header is included
 
 **Note Format**: `11/10/2025 Atlantic County, NJ` (matches field 178 format)
 
@@ -389,6 +418,59 @@ If single update doesn't work, use two "Contact List" → "Add" nodes:
 - Notes can be created using the same date/territory format as custom fields
 - Notes are useful for audit trails and quick reference
 - Use the same date extraction logic for consistency across all ActiveCampaign data
+
+---
+
+### Issue 13: Marking Emails as Read and Adding Tags to Contacts
+
+**Status**: ✅ Resolved
+
+**Problem**: 
+1. Processed emails need to be marked as read to prevent reprocessing
+2. Consultant contacts need tags for organization and filtering
+
+**Solution**: 
+1. **Mark Email as Read**: Add Gmail node with `addLabels` operation using a custom "Processed" label, or use `modifyMessage` to remove UNREAD label
+2. **Add Tag to Contact**: Use ActiveCampaign `contactTag` resource with `create` operation, or HTTP Request to `/api/3/contactTags` endpoint
+
+**Gmail Mark as Read Configuration**:
+- **Node Type:** `n8n-nodes-base.gmail`
+- **Resource:** `message`
+- **Operation:** `addLabels` (recommended) or `modifyMessage`
+- **Message ID:** `={{ $('Gmail Trigger').item.json.id }}`
+- **Label IDs:** Custom label ID (e.g., "Territory-Check-Processed")
+
+**ActiveCampaign Tag Configuration**:
+- **Node Type:** `n8n-nodes-base.activeCampaign` (if available)
+- **Resource:** `contactTag`
+- **Operation:** `create`
+- **Contact ID:** `={{ $('Create a contact').item.json.id }}` (new) or `={{ $json.id }}` (existing)
+- **Tag:** `Territory Check Consultant`
+
+**Alternative HTTP Request for Tags**:
+```json
+{
+  "method": "POST",
+  "url": "https://YOUR_ACCOUNT.api-us1.com/api/3/contactTags",
+  "jsonBody": {
+    "contactTag": {
+      "contact": "{{ String($('Create a contact').item.json.id) }}",
+      "tag": "Territory Check Consultant"
+    }
+  }
+}
+```
+
+**Placement**: Both nodes should be added at the end of workflow paths (after "Add Note to Contact")
+
+**Files Changed**: Workflow JSON, `docs/MARK-EMAIL-READ-AND-ADD-TAG.md`
+
+**Lesson Learned**:
+- Marking emails as read prevents duplicate processing
+- Custom labels are more reliable than trying to modify read status directly
+- Tags help organize contacts and enable filtering/reporting
+- Use Merge node to combine workflow paths before adding final nodes
+- ActiveCampaign tags can be auto-created if they don't exist
 
 ---
 
@@ -685,6 +767,8 @@ $json.fieldValues.find(item => item.field === "178")?.value
 8. **Date extraction**: Extract dates from forwarded email headers for historical accuracy - use `territory_check_date` with fallback to current date
 9. **Notes creation**: Create notes using same date/territory format as custom fields for consistency
 10. **List IDs**: Franchise Consultants list = 39, Second list = 40
+11. **Email processing**: Mark emails as read (or add processed label) to prevent reprocessing
+12. **Contact tags**: Add tags to contacts for organization and filtering - tags auto-create if they don't exist
 
 ### n8n Workflow Development
 
@@ -892,7 +976,7 @@ $json.fieldValues.find(item => item.field === "178")?.value
 - Prepends new territory check with date, existing values below
 - **Date extraction**: Uses `territory_check_date` from forwarded email header, falls back to current date
 - **List-specific fields**: Field 178 requires contact on lists 39 & 40 before updating
-- **Workflow order**: Create → Add to Lists → Update Field 178 → Create Note
+- **Workflow order**: Create → Add to Lists → Update Field 178 → Create Note → Add Tag → Mark Email Read
 
 **Current Workflow**: `https://n8n.trfaapi.com/workflow/gZHoQcN5bTwijo4a`
 
@@ -915,6 +999,8 @@ $json.fieldValues.find(item => item.field === "178")?.value
 - ✅ ActiveCampaign field access: See `ACTIVECAMPAIGN-FIELD-GUIDE.md` Method 1
 - ✅ List-specific fields: Add to lists 39 & 40 before updating field 178
 - ✅ Note creation: Uses same date/territory format as field 178
+- ✅ Contact tagging: Use ActiveCampaign `contactTag` resource or HTTP Request to `/api/3/contactTags`
+- ✅ Email status: Mark emails as read using Gmail `addLabels` or `modifyMessage`
 - ✅ Territory extraction: See `RULES.md` network-specific rules
 - ✅ Prospect name splitting: Automatic for all networks
 
@@ -924,18 +1010,24 @@ $json.fieldValues.find(item => item.field === "178")?.value
 1. Create contact (without field 178)
 2. Add to lists 39 & 40
 3. Update field 178 (now accessible)
-4. Create note (optional)
+4. Create note
+5. Add tag to contact
+6. Mark email as read
 
 **For Existing Contacts**:
 1. Get custom fields
 2. Update field 178 & 180
-3. Create note (optional)
+3. Create note
+4. Add tag to contact
+5. Mark email as read
 
 ### Common Next Steps
 
 - Monitor production field updates
 - Verify date extraction working for older emails
 - Test list addition and field 178 update sequence
+- Verify emails marked as read and not reprocessed
+- Verify tags added to contacts correctly
 - Add new network formats if discovered
 - Enhance territory extraction patterns
 - Add validation or error handling

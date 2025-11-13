@@ -15,6 +15,7 @@ This project processes incoming territory check emails from various consultant n
 - **[QUICK-START.md](docs/QUICK-START.md)** - Quick resume guide for continuing work
 - **[LESSONS-LEARNED.md](docs/LESSONS-LEARNED.md)** - All issues encountered, solutions, and rabbit holes
 - **[ACTIVECAMPAIGN-FIELD-GUIDE.md](docs/ACTIVECAMPAIGN-FIELD-GUIDE.md)** - Complete guide for ActiveCampaign field access
+- **[MARK-EMAIL-READ-AND-ADD-TAG.md](docs/MARK-EMAIL-READ-AND-ADD-TAG.md)** - Guide for marking emails as read and adding tags
 - **[RULES.md](docs/RULES.md)** - Technical rules and patterns for email parsing
 - **[CONFIGURATION-GUIDE.md](CONFIGURATION-GUIDE.md)** - Workflow configuration instructions
 
@@ -34,6 +35,8 @@ This project processes incoming territory check emails from various consultant n
 - Date extraction from forwarded email headers
 - List-specific field handling (add to lists before updating field 178)
 - Note creation with same format as field 178
+- Mark emails as read to prevent reprocessing
+- Add tags to contacts for organization
 
 ## Features
 
@@ -46,17 +49,21 @@ This project processes incoming territory check emails from various consultant n
 - Territory check history tracking (field 178)
 - Current territory tracking (field 180)
 - Note creation for audit trail
+- Email status management (mark as read/processed)
+- Contact tagging for organization
 
 ## Critical Gotchas
 
 ⚠️ **ActiveCampaign field IDs are strings** - Use `"178"` not `178`  
 ⚠️ **Field 178 is list-specific** - Contact must be on lists 39 & 40 before updating  
-⚠️ **Workflow order matters** - Create → Add to Lists → Update Field 178 → Create Note  
+⚠️ **Workflow order matters** - Create → Add to Lists → Update Field 178 → Create Note → Add Tag → Mark Email Read  
 ⚠️ **Date extraction** - Uses `territory_check_date` from forwarded email, falls back to current date  
 ⚠️ **Forwarded emails** - Check body first, not headers  
 ⚠️ **Date format variations** - May be "Date:Mon" (no space) not "Date: Mon"  
 ⚠️ **Regex patterns** - Use non-greedy `+?` with explicit boundaries  
-⚠️ **n8n expressions** - Use actual line breaks, not `\n`
+⚠️ **n8n expressions** - Use actual line breaks, not `\n`  
+⚠️ **Email processing** - Mark emails as read to prevent reprocessing  
+⚠️ **Contact tags** - Tags auto-create if they don't exist
 
 See [`docs/LESSONS-LEARNED.md`](docs/LESSONS-LEARNED.md) for complete list.
 

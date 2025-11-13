@@ -621,18 +621,72 @@ If the single update doesn't work, use two "Contact List" → "Add" nodes:
 
 Create notes in ActiveCampaign with territory check information using the same date/territory format as field 178.
 
+**⚠️ IMPORTANT:** The ActiveCampaign node in n8n does **not** have a "note" resource. You must use an **HTTP Request** node to call the ActiveCampaign API directly.
+
 ### Node Configuration
 
-**Node Type:** `n8n-nodes-base.activeCampaign`  
-**Resource:** `note`  
-**Operation:** `create`
+**Node Type:** `n8n-nodes-base.httpRequest`  
+**Method:** `POST`  
+**URL:** `https://YOUR_ACCOUNT.api-us1.com/api/3/notes`  
+*(Replace `YOUR_ACCOUNT.api-us1.com` with your ActiveCampaign API URL)*
+
+**Authentication:**
+- **Type:** Header Auth
+- **Name:** `Api-Token`
+- **Value:** `YOUR_ACTIVECAMPAIGN_API_KEY`
+
+**Headers (Important!):**
+- **Content-Type:** `application/json`
+- **Api-Token:** `YOUR_ACTIVECAMPAIGN_API_KEY`
+
+**Body:**
+- **Body Content Type:** JSON
+- **JSON Body:**
+```json
+{
+  "note": {
+    "note": "{{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}",
+    "reltype": "Subscriber",
+    "relid": "{{ String($('Create a contact').item.json.id) }}"
+  }
+}
+```
+
+**⚠️ CRITICAL:** 
+- **NO `=` sign in expressions** - When "Specify Body" is set to "Using JSON", use `{{ }}` without `=`
+- `reltype` must be `"Subscriber"` (not `"contact"`) - ActiveCampaign API uses "Subscriber" for contacts
+- `relid` must be a **string** - use `String($json.id)` or `String($('Create a contact').item.json.id)` to ensure it's converted
+- For new contacts, use `$('Create a contact').item.json.id` to reference the contact ID from creation
+- Make sure `Content-Type: application/json` header is included
+- The `Api-Token` header is required (in addition to authentication)
+
+### Complete Node Configuration (JSON)
 
 ```json
 {
-  "resource": "note",
-  "operation": "create",
-  "contactId": "={{ $json.id }}",
-  "note": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}"
+  "parameters": {
+    "method": "POST",
+    "url": "https://YOUR_ACCOUNT.api-us1.com/api/3/notes",
+    "authentication": "headerAuth",
+    "sendHeaders": true,
+    "headerParameters": {
+      "parameters": [
+        {
+          "name": "Api-Token",
+          "value": "=YOUR_ACTIVECAMPAIGN_API_KEY"
+        }
+      ]
+    },
+    "sendBody": true,
+    "bodyParameters": {
+      "parameters": []
+    },
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"note\": {\n    \"note\": \"{{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}\",\n    \"reltype\": \"contact\",\n    \"relid\": \"{{ $json.id }}\"\n  }\n}",
+    "options": {}
+  },
+  "type": "n8n-nodes-base.httpRequest",
+  "typeVersion": 4.1
 }
 ```
 
@@ -644,11 +698,179 @@ The note will contain: `11/10/2025 Atlantic County, NJ` (matches field 178 forma
 - Falls back to current date if extraction fails
 - Same format as field 178 for consistency
 
+### API Endpoint Details
+
+**Endpoint:** `POST /api/3/notes`
+
+**Request Body Structure:**
+- `note.note`: The note text content
+- `note.reltype`: Relationship type - must be `"Subscriber"` for contact notes (ActiveCampaign API uses "Subscriber" not "contact")
+- `note.relid`: The contact ID (from previous node's `$json.id`)
+
+**Response:**
+```json
+{
+  "note": {
+    "id": "12345",
+    "note": "11/10/2025 Atlantic County, NJ",
+    "reltype": "contact",
+    "relid": "11561",
+    "cdate": "2025-11-13T10:30:00-05:00"
+  }
+}
+```
+
 ### Placement
 
-Add the note node **after** updating field 178 in both workflow paths:
+Add the HTTP Request node **after** updating field 178 in both workflow paths:
 - **Existing contacts:** After "Update a contact" node
 - **New contacts:** After "Update Field 178" node
+
+**Important:** The node expects `$json.id` to contain the contact ID from the previous ActiveCampaign node.
+
+**⚠️ For New Contacts:** If you're getting "contact_not_exist" error, use the contact ID from the "Create a contact" node instead:
+- Use `$('Create a contact').item.json.id` instead of `$json.id`
+- Or ensure you're referencing the correct node that contains the contact ID
+
+### Troubleshooting 400 Bad Request Error
+
+If you get a "400 Bad Request" error, check these common issues:
+
+1. **HTTP Method must be POST (not GET):**
+   - **CRITICAL:** Check the console/logs - if you see `method: "GET"`, the method is wrong
+   - In n8n HTTP Request node, explicitly set **Method:** `POST`
+   - Even when using ActiveCampaign credentials, you must manually set the method
+   - GET requests cannot send a body, which causes the error
+
+2. **reltype must be "Subscriber" (not "contact"):**
+   - ActiveCampaign API uses `"Subscriber"` for contacts, not `"contact"`
+   - Valid values: `Deal`, `Subscriber`, `DealTask`, `Activity`, `CustomerAccount`
+   - Error: "reltype must be one of Deal, Subscriber, DealTask, Activity, CustomerAccount"
+
+3. **Contact ID must exist and be correct:**
+   - **Error "contact_not_exist"**: The contact ID doesn't exist or is wrong
+   - For new contacts, use `$('Create a contact').item.json.id` instead of `$json.id`
+   - Verify the contact ID exists by checking the previous node's output
+   - Use `String($json.id)` or `String($('Create a contact').item.json.id)` to ensure it's a string
+   - ActiveCampaign API requires `relid` as a string, not a number
+
+3. **Content-Type header required:**
+   - Add `Content-Type: application/json` to headers
+   - This is separate from the authentication header
+
+4. **Correct JSON body format:**
+   - Ensure the body is properly formatted JSON
+   - Use n8n's JSON body editor, not raw text
+
+5. **Verify contact ID exists:**
+   - Check that `$json.id` from previous node contains a valid contact ID
+   - Test by logging the value: `{{ $json.id }}`
+
+6. **API URL format:**
+   - Must be: `https://YOUR_ACCOUNT.api-us1.com/api/3/notes`
+   - Replace `YOUR_ACCOUNT` with your actual account subdomain
+   - No trailing slash
+
+### Step-by-Step n8n Configuration
+
+1. **Add HTTP Request Node**
+   - Method: `POST`
+   - URL: `https://YOUR_ACCOUNT.api-us1.com/api/3/notes`
+
+2. **Set Headers** (in "Headers" section):
+   - Click "Add Header"
+   - Name: `Content-Type`
+   - Value: `application/json`
+   - Click "Add Header" again
+   - Name: `Api-Token`
+   - Value: `YOUR_ACTIVECAMPAIGN_API_KEY`
+
+3. **Set Authentication** (in "Authentication" section):
+   - Type: `Header Auth`
+   - Name: `Api-Token`
+   - Value: `YOUR_ACTIVECAMPAIGN_API_KEY`
+   *(Note: You may need both header and authentication, or just authentication - test both)*
+
+4. **Set Body** (in "Body" section):
+   - Body Content Type: `JSON`
+   - JSON Body:
+   ```json
+   {
+     "note": {
+       "note": "{{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}",
+       "reltype": "Subscriber",
+       "relid": "{{ String($('Create a contact').item.json.id) }}"
+     }
+   }
+   ```
+   
+   **⚠️ CRITICAL:** 
+   - **NO `=` sign** - When "Specify Body" is "Using JSON", expressions use `{{ }}` without `=`
+   - For new contacts, use `$('Create a contact').item.json.id` to reference the contact ID from creation
+   - For existing contacts, use `$json.id` from the update node
+
+5. **Options Section** (Important!):
+   - **Enable "Full Response"** to see detailed error messages
+   - **Check for "Send Body as JSON" or similar option** - This should be enabled automatically when Body Content Type is JSON, but verify it's checked
+   - If there's a "JSON" toggle or checkbox, make sure it's enabled
+
+**⚠️ If `json: false` appears in console:**
+- The body might not be serializing as JSON
+- Try using a Code node to format the body first, then reference it
+- Or try using "Specify Body" → "Using JSON" with explicit JSON formatting
+
+### Alternative Solution: Code Node + HTTP Request
+
+If the HTTP Request node isn't properly serializing JSON (shows `json: false` in console), use a Code node to format the body first:
+
+**Step 1: Add Code Node Before HTTP Request**
+```javascript
+const contactId = $input.item.json.id;
+const extractFields = $('Extract Fields').item.json;
+
+const noteText = `${extractFields.territory_check_date || $now.toFormat('MM/dd/yyyy')} ${extractFields.territory_requested}`;
+
+const noteBody = {
+  note: {
+    note: noteText,
+    reltype: "Subscriber",
+    relid: String(contactId)
+  }
+};
+
+return {
+  json: {
+    contactId: contactId,
+    noteBody: noteBody
+  }
+};
+```
+
+**Step 2: HTTP Request Node Configuration**
+- Method: `POST`
+- URL: `https://trfa.api-us1.com/api/3/notes`
+- Authentication: ActiveCampaign (API) credentials
+- Headers: `Content-Type: application/json`
+- Body Content Type: `JSON`
+- JSON Body: `={{ $json.noteBody }}`
+
+This ensures the body is properly formatted before sending.
+
+---
+
+### Alternative: Using ActiveCampaign Credentials
+
+If you have ActiveCampaign credentials configured in n8n, you can reference them in the HTTP Request node:
+- Use the same credentials as your other ActiveCampaign nodes
+- The API URL and token will be automatically included
+- Still ensure `relid` is converted to string: `String($json.id)`
+
+**⚠️ CRITICAL WHEN USING CREDENTIALS:**
+- **You MUST manually set Method to POST** - credentials don't set the HTTP method
+- Even if using credentials, explicitly set:
+  - **Method:** `POST` (in the main node settings)
+  - **URL:** `https://trfa.api-us1.com/api/3/notes` (or your account URL)
+- The credentials will handle authentication, but you still need to set method and URL
 
 ---
 

@@ -16,7 +16,8 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 1. **LESSONS-LEARNED.md** - All issues, solutions, and rabbit holes
 2. **ACTIVECAMPAIGN-FIELD-GUIDE.md** - ActiveCampaign field access (includes working expression)
-3. **RULES.md** - Email parsing rules and patterns
+3. **MARK-EMAIL-READ-AND-ADD-TAG.md** - Guide for marking emails as read and adding tags
+4. **RULES.md** - Email parsing rules and patterns
 
 ---
 
@@ -36,10 +37,26 @@ This guide helps you quickly resume work on the territory checks workflow.
 ={{ $('Extract Fields').item.json.territory_requested }}
 ```
 
-**Note Creation (Same Format as Field 178):**
-```javascript
-={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}
+**Note Creation (HTTP Request Node - Same Format as Field 178):**
+- **Node Type:** HTTP Request
+- **Method:** POST
+- **URL:** `https://YOUR_ACCOUNT.api-us1.com/api/3/notes`
+- **Headers:** `Content-Type: application/json`, `Api-Token: YOUR_API_KEY`
+- **Auth:** Header Auth with `Api-Token` = your API key
+- **Body (JSON):**
+```json
+{
+  "note": {
+    "note": "{{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}",
+    "reltype": "Subscriber",
+    "relid": "{{ String($('Create a contact').item.json.id) }}"
+  }
+}
 ```
+**⚠️ CRITICAL:** 
+- **NO `=` sign in expressions** - When "Using JSON", use `{{ }}` without `=`
+- Use `reltype: "Subscriber"` (not "contact") - ActiveCampaign API uses "Subscriber" for contacts
+- Use `String($('Create a contact').item.json.id)` for new contacts - relid must be a string!
 
 **Critical**: 
 - Field IDs must be strings: `"178"` and `"180"` not numbers
@@ -70,6 +87,11 @@ This guide helps you quickly resume work on the territory checks workflow.
 10. ⚠️ **n8n expressions** - Use actual line breaks, not `\n`
 11. ⚠️ **Gmail trigger** - Manual test returns 1 email (expected behavior)
 12. ⚠️ **List IDs** - Franchise Consultants = 39, Second list = 40
+13. ⚠️ **Note creation** - ActiveCampaign node doesn't support notes - must use HTTP Request node with `/api/3/notes` endpoint
+14. ⚠️ **HTTP Request method** - MUST be POST (not GET) - even when using ActiveCampaign credentials, manually set Method to POST
+15. ⚠️ **JSON body expressions** - When "Using JSON", use `{{ }}` WITHOUT `=` sign - `=` is only for direct expression fields
+16. ⚠️ **Mark emails as read** - Add Gmail node with `addLabels` or `modifyMessage` to prevent reprocessing
+17. ⚠️ **Contact tags** - Use ActiveCampaign `contactTag` resource or HTTP Request to `/api/3/contactTags` - tags auto-create if missing
 
 ---
 
@@ -104,6 +126,9 @@ This guide helps you quickly resume work on the territory checks workflow.
 - [ ] **For new contacts**: Verify contact added to lists 39 & 40 before field 178 update
 - [ ] **Date extraction**: Verify `territory_check_date` extracted from forwarded emails
 - [ ] **Notes**: Verify notes created with correct date/territory format
+- [ ] **Tags**: Verify tags added to contacts (check ActiveCampaign)
+- [ ] **Email status**: Verify emails marked as read (or have processed label)
+- [ ] **No reprocessing**: Verify processed emails don't get reprocessed
 - [ ] Check prospect name splitting works
 - [ ] Verify forwarded email extraction (Reply-To, date)
 - [ ] Test edge cases (missing fields, unusual formatting)
@@ -120,11 +145,13 @@ This guide helps you quickly resume work on the territory checks workflow.
 
 ---
 
-**Last Updated**: After adding date extraction, list-specific fields handling, and note creation
+**Last Updated**: After adding mark email as read and add tag functionality
 
 **Key Updates**:
 - Date extraction from forwarded email headers
 - List-specific field handling (add to lists before updating field 178)
 - Note creation with same format as field 178
+- Mark emails as read to prevent reprocessing
+- Add tags to contacts for organization
 - List IDs: 39 (Franchise Consultants), 40 (Second list)
 
