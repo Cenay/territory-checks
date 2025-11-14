@@ -6,29 +6,31 @@ This n8n workflow automates the processing of territory check requests from fran
 
 ## Workflow Flow
 
-1. **Gmail Trigger** - Monitors inbox for new emails
-2. **AI Extraction** - Uses Information Extractor to classify and parse email data (consultant info, prospect info, territory details)
-3. **Classification Check** - Routes only territory check emails (stops processing if not a territory check)
+1. **Gmail Trigger** - Monitors inbox for new unread emails
+2. **Extract Fields** - Uses JavaScript Code node with network-specific regex patterns to extract and classify email data:
+   - Detects network (IFPG, FranServe, FBA, TYN, Direct Form)
+   - Extracts consultant info (name, email, phone, company)
+   - Extracts prospect info (name, email, city, state, zip)
+   - Extracts territory details
+   - Extracts date from forwarded message headers
+   - Validates all required fields
+3. **Is Territory Check** - Routes only territory check emails (stops processing if not a territory check)
 4. **Find Consultant** - Searches ActiveCampaign for existing consultant by email
 5. **Consultant Exists Check** - Branches based on whether consultant was found:
    - **If NEW consultant:**
      - Creates consultant contact in ActiveCampaign
      - Sets First Name, Last Name, Email, Phone
-     - Sets Contact Network field (IFPG, FranServe, FBA, or Direct Form)
-     - Sets Person Type field to "Consultant"
-     - Adds to "Franchise consultant" list
-     - Adds "Consultant" tag
-     - Adds "Territory Check" tag
+     - Sets Company field (IFPG, FranServe, FBA, TYN, or Direct)
+     - Adds to "Franchise Consultants" list (List 39 & 40)
    - **If EXISTING consultant:**
-     - Skips creation and list/tag additions
+     - Skips creation and list additions
 6. **Update Territory Fields** - Updates consultant record with:
-   - Appends to "Territory Checks" field (date + city/state)
-   - Updates "Current Territory Check" field
-7. **Territory Lookup** - Checks Airtable Territories table for state availability
-8. **Response Generation** - Creates personalized YES/NO reply message based on availability
-9. **Email Reply** - Sends response to consultant
-10. **Logging** - Records inquiry in Airtable Franchise_Inquiries table
-11. **Email Labeling** - Applies Gmail label ("Processed-Yes" or "Processed-No")
+   - Appends to "Territory Checks" field (Field 178) with date + territory
+   - Updates "Current Territory Check" field (Field 180) with territory only
+   - Creates note with same date/territory format
+7. **Add Tags** - Adds tags to contact for organization
+8. **Mark Email as Read** - Applies label or mark status to prevent reprocessing
+9. **(Optional) Response/Logging** - Future: Territory lookup, response generation, Airtable logging
 
 ## Pre-Deployment Configuration
 
@@ -48,63 +50,77 @@ This n8n workflow automates the processing of territory check requests from fran
 
 ---
 
-### 2. Information Extractor (AI) Setup
+### 2. Extract Fields (Code Node) Setup
 
-**Node:** Extract Territory Check Info
+**Node:** Extract Fields
 
-**Requirements:**
-- Configure OpenAI or compatible LLM credentials in n8n
-- The node uses 13 extraction attributes defined in the workflow
+**Type:** JavaScript Code Node (deterministic extraction, no AI required)
 
 **What it extracts:**
-- `is_territory_check` (boolean) - Classification
-- `network` (string) - IFPG, FranServe, FBA, Direct Form, or Unknown
-- Consultant details: first_name, last_name, email, phone
-- Prospect details: first_name, last_name, email
-- Territory details: city, state, zip_code, territory_notes
+- `network` - IFPG, FranServe, FBA, TYN, or Direct Form
+- `is_territory_check` - Boolean classification
+- Consultant details: name, first_name, last_name, email, phone, company
+- Prospect details: name, first_name, last_name, email, city, state, zip
+- Territory: city, state, zip, full territory description
+- Dates: original email date, formatted territory check date (MM/dd/yyyy)
+- Validation: allFieldsValid, missingFields array, error notes
+- Debug info: extraction notes with source tracking
 
-**No configuration needed** - extraction schema is pre-built.
+**Configuration:**
+- The code is embedded in the workflow node
+- Uses network-specific regex patterns to handle 5 different email formats
+- No external credentials required
+- See `/specs/RULES.md` for detailed extraction patterns and logic
+- See `/docs/javascript-for-code-node.js` for the complete source code
 
 ---
 
 ### 3. ActiveCampaign Setup
 
-You need to configure the following ActiveCampaign IDs:
+You need to configure the following ActiveCampaign IDs and API credentials:
 
 #### a. Custom Field IDs
 
-**Find these in ActiveCampaign:**
+**Current implementation uses:**
+- **Field 178** - "Territory Checks" (history field - prepends with date)
+- **Field 180** - "Current Territory Check" (current territory, no date)
+- **Field 179** - "Company" (for consultant company)
+- **Field 45** - "Person Type" (set to "Consultant")
+
+**Find field IDs in ActiveCampaign:**
 - Go to Lists → Manage Fields → Click on each field → Copy the Field ID from URL
 
-**Fields needed:**
-1. **Contact Network** field → Replace `CONTACT_NETWORK_FIELD_ID`
-2. **Person Type** field → Replace `PERSON_TYPE_FIELD_ID`
-3. **Territory Checks** (text area) → Replace `TERRITORY_CHECKS_FIELD_ID`
-4. **Current Territory Check** → Replace `CURRENT_TERRITORY_CHECK_FIELD_ID`
+**If your field IDs differ, update them in:**
+- The n8n workflow nodes that reference these field IDs
 
-**Nodes to update:**
-- `Create Consultant` (line 157, 161)
-- `Update Territory Check Fields` (line 222, 226)
+#### b. List IDs
 
-#### b. List ID
+**Current implementation uses:**
+- **List 39** - "Franchise Consultants"
+- **List 40** - "Second list" (required for field 178 access)
 
-**Find in ActiveCampaign:**
-- Go to Lists → Click "Franchise consultant" list → Copy ID from URL
+**Important:** Field 178 is list-specific and only accessible when contact is on lists 39 & 40. The workflow adds new consultants to both lists before updating field 178.
 
-**Replace:** `FRANCHISE_CONSULTANT_LIST_ID` in node `Add to Franchise Consultant List` (line 179)
+#### c. API Credentials
 
-#### c. Tag IDs
-
-**Find in ActiveCampaign:**
-- Go to Contacts → Tags → Click tag → Copy ID from URL
-
-**Tags needed:**
-1. "Consultant" tag → Replace `CONSULTANT_TAG_ID` (line 192)
-2. "Territory Check" tag → Replace `TERRITORY_CHECK_TAG_ID` (line 205)
+**In n8n, configure:**
+- ActiveCampaign credentials with your account URL and API key
+- Add contacts endpoint: `https://YOUR_ACCOUNT.api-us1.com/api/3/contacts`
+- Field values endpoint: `https://YOUR_ACCOUNT.api-us1.com/api/3/contactFieldValues`
+- Notes endpoint: `https://YOUR_ACCOUNT.api-us1.com/api/3/notes`
 
 ---
 
 ### 4. Airtable Setup
+
+**Status:** Currently optional. The workflow focuses on ActiveCampaign integration.
+
+**Future Enhancement:** Territory lookup and inquiry logging via Airtable can be added to:
+1. Check state territory availability
+2. Log all territory check inquiries
+3. Track response history
+
+**If you want to add Airtable integration:**
 
 #### a. Base and Table IDs
 
@@ -113,113 +129,118 @@ You need to configure the following ActiveCampaign IDs:
 - Base ID is shown at top (starts with `app`)
 - Table IDs are shown for each table (starts with `tbl`)
 
-**IDs needed:**
-1. **Base ID** → Replace `AIRTABLE_BASE_ID` (lines 246, 294)
-2. **Territories table ID** → Replace `TERRITORIES_TABLE_ID` (line 250)
-3. **Franchise_Inquiries table ID** → Replace `FRANCHISE_INQUIRIES_TABLE_ID` (line 298)
-
-**Nodes to update:**
-- `Lookup Territory in Airtable`
-- `Log to Airtable`
+**IDs you'll need:**
+1. **Base ID** - Your Airtable base identifier
+2. **Territories table ID** - For territory lookup
+3. **Inquiries table ID** - For logging territory checks
 
 #### b. Airtable Schema Requirements
 
-**Territories Table must have:**
+**Territories Table:**
 - `State_Abbrev` (text) - Two-letter state code
 - `Available` (checkbox) - Territory availability
-- `% Remaining` (number) - Optional
-- `Notes` (long text) - Optional
+- `Notes` (long text) - Optional notes
 
-**Franchise_Inquiries Table must have:**
-- `Date` (date)
-- `Network` (text or single select)
-- `Consultant` (text)
-- `Prospect` (text)
-- `City` (text)
-- `State` (text)
-- `Email_Subject` (long text)
-- `Email_Body` (long text)
-- `Reply_Status` (text or single select: YES/NO)
-- `Territory` (linked to Territories table)
+**Inquiries Table:**
+- `Date` (date) - Date of inquiry
+- `Network` (text) - IFPG, FranServe, FBA, TYN, Direct
+- `Consultant` (text) - Consultant name
+- `Prospect` (text) - Prospect name
+- `Territory` (text) - Territory requested
+- `State` (text) - State abbreviation
 
 ---
 
 ### 5. Gmail Labels Setup
 
-**Create these labels in Gmail:**
-1. "Processed-Yes" - Applied when territory is available
-2. "Processed-No" - Applied when territory is not available
-3. "Manual-Review" - (For future use - edge cases)
+**Create labels in Gmail (optional):**
+1. "Processed-Territory-Check" - Mark emails that were processed as territory checks
+2. Or use Gmail's built-in read status marking
 
-**Node:** Label Email (line 323)
+**Configuration:**
+- The workflow can mark emails as read or apply custom labels
+- Gmail API will auto-create labels if they don't exist
+- Pre-creating labels in Gmail is recommended for consistency
 
-**Note:** The current workflow uses label names, not IDs. Gmail API will create labels if they don't exist, or you can pre-create them in Gmail.
+**Node:** "Mark Email as Read" or label node (near end of workflow)
 
 ---
 
-### 6. Error Handling & Manual Review
+### 6. Error Handling & Validation
 
 **Current behavior:**
-- If AI classifies email as NOT a territory check → workflow stops (no action)
-- If consultant lookup fails → `continueOnFail: true` allows workflow to continue and create new consultant
+- **Not a territory check**: Workflow stops (email is not processed)
+- **Missing required fields** (prospect name, territory): Extraction returns validation errors in output
+- **Consultant not found**: New consultant is created automatically
+- **Field update fails**: Check ActiveCampaign field IDs and list membership
 
-**Future enhancement:** Add error output handling for edge cases that need manual review.
+**Validation output from Extract Fields node:**
+- `allFieldsValid` (boolean) - Whether all required fields were extracted
+- `missingFields` (array) - List of fields that are null or too short
+- `errorNotes` (string) - Human-readable error message
+- `extraction_notes` (object) - Debug info about extraction process
+
+**Monitoring:**
+- Check n8n execution logs for failed runs
+- Review Extract Fields output for validation errors
+- Verify ActiveCampaign field mapping if updates aren't working
 
 ---
 
 ## Deployment Steps
 
-### Step 1: Replace All Placeholder IDs
+### Step 1: Verify ActiveCampaign Configuration
 
-Use find/replace in the workflow JSON file:
-
-```
-CONTACT_NETWORK_FIELD_ID → [your actual field ID]
-PERSON_TYPE_FIELD_ID → [your actual field ID]
-TERRITORY_CHECKS_FIELD_ID → [your actual field ID]
-CURRENT_TERRITORY_CHECK_FIELD_ID → [your actual field ID]
-FRANCHISE_CONSULTANT_LIST_ID → [your actual list ID]
-CONSULTANT_TAG_ID → [your actual tag ID]
-TERRITORY_CHECK_TAG_ID → [your actual tag ID]
-AIRTABLE_BASE_ID → [your actual base ID]
-TERRITORIES_TABLE_ID → [your actual table ID]
-FRANCHISE_INQUIRIES_TABLE_ID → [your actual table ID]
-```
+1. Open ActiveCampaign and navigate to Lists → Manage Fields
+2. Find your custom fields and note the IDs:
+   - Field 178 - Territory Checks (history)
+   - Field 180 - Current Territory Check
+   - Field 179 - Company
+   - Field 45 - Person Type
+3. Verify lists exist:
+   - List 39 - Franchise Consultants
+   - List 40 - Second list
 
 ### Step 2: Configure Credentials in n8n
 
-1. **Gmail OAuth2** - Connect your Gmail account
-2. **ActiveCampaign API** - Add API URL and key
-3. **Airtable Token** - Add personal access token
-4. **OpenAI/LLM** - Add API key for Information Extractor
+1. **Gmail OAuth2** - Connect your franchise email account
+   - Allows workflow to read territory check emails
+2. **ActiveCampaign API** - Add your account API credentials
+   - URL: `https://YOUR_ACCOUNT.api-us1.com`
+   - API Key: Your ActiveCampaign API token
 
-### Step 3: Import Workflow
+### Step 3: Import/Review Workflow
 
-1. Log into n8n at https://n8n.trfaapi.com
-2. Click "+ Add workflow" → Import from File
-3. Select `territory-check-workflow.json`
-4. Review each node and confirm credentials are assigned
+1. Log into n8n at your instance
+2. Import the workflow JSON: `Franchise Territory Checks - Working.json`
+3. Review each node and verify:
+   - Gmail trigger has correct email account
+   - ActiveCampaign nodes reference correct field/list IDs
+   - All credentials are assigned
 
 ### Step 4: Test with Sample Email
 
-1. **Disable the workflow** (don't activate yet)
-2. Send a test email with one of the sample formats
-3. Click "Execute Workflow" manually
-4. Review each node's output
-5. Verify:
-   - AI extraction captured correct data
-   - Consultant created/found in ActiveCampaign
-   - Territory lookup worked
-   - Reply email was generated correctly
-   - Airtable log was created
-   - Gmail label was applied
+1. **Disable the workflow** (don't activate it yet)
+2. Manually trigger with a sample territory check email
+3. Click "Test" or "Execute Workflow" manually
+4. Review output at each step:
+   - **Extract Fields**: Verify all fields extracted correctly
+   - **Is Territory Check**: Confirms it's a territory check email
+   - **Find Consultant**: Shows if consultant exists
+   - **Create Consultant** or skip: New vs existing consultant
+   - **Update Territory Fields**: Verify field 178/180 updated in ActiveCampaign
+5. Check ActiveCampaign contact to confirm:
+   - Consultant created (if new)
+   - Territory Checks field (178) shows date + territory
+   - Current Territory Check field (180) shows territory
 
 ### Step 5: Activate Workflow
 
-Once testing confirms everything works:
+Once testing confirms extraction and ActiveCampaign updates work:
 1. Click "Active" toggle in top right
-2. Monitor for first few real territory checks
-3. Review executions in n8n's execution log
+2. Workflow will now process all new territory check emails
+3. Monitor n8n execution log for the first few runs
+4. Check ActiveCampaign for properly populated territory records
 
 ---
 
@@ -227,24 +248,47 @@ Once testing confirms everything works:
 
 ### Check Executions Regularly
 
-- n8n → Executions → View recent runs
-- Look for failed executions (red indicator)
-- Review error messages and adjust workflow as needed
+1. n8n Dashboard → Executions → View recent runs
+2. Look for failed executions (red indicator)
+3. Check the error message and execution details
 
-### Common Issues
+### Common Issues & Solutions
 
-1. **AI extraction misses data** → Adjust attribute descriptions in Information Extractor
-2. **ActiveCampaign field not updating** → Verify field IDs are correct
-3. **Airtable lookup fails** → Check state abbreviation format matches
-4. **Gmail label not applied** → Verify labels exist in Gmail
+1. **Extraction misses fields**
+   - Check `/specs/RULES.md` for network-specific patterns
+   - Verify email format matches documented patterns
+   - Check `missingFields` output from Extract Fields node
+
+2. **ActiveCampaign field not updating**
+   - Verify field IDs are correct (178, 180, 179, 45)
+   - Check that new consultants are on lists 39 & 40 before field 178 update
+   - Verify ActiveCampaign credentials have API access
+
+3. **Gmail trigger not firing**
+   - Check Gmail label filters in trigger configuration
+   - Verify OAuth2 credentials are still valid
+   - Test trigger manually with "Fetch Test Event"
+
+4. **Consultant not created**
+   - Check ActiveCampaign API rate limits not exceeded
+   - Verify email format is valid
+   - Check n8n execution logs for error details
+
+### Maintenance Tasks
+
+- **Weekly**: Review execution logs for any failed runs
+- **Monthly**: Test with sample emails from each network format
+- **Quarterly**: Update extraction patterns if new email formats discovered
+- **As needed**: Update field IDs if ActiveCampaign structure changes
 
 ### Future Enhancements
 
-- [ ] Add "Manual-Review" path for ambiguous emails
-- [ ] Add notification when territory check comes in
+- [ ] Add territory availability lookup (Airtable integration)
+- [ ] Send confirmation email to consultant
 - [ ] Track response time metrics
 - [ ] Add consultant follow-up automation
 - [ ] Implement territory hold/reservation system
+- [ ] Add error notification to admin
 
 ---
 
@@ -261,43 +305,65 @@ For issues with:
 ## Workflow Architecture
 
 ```
-Gmail Trigger
+Gmail Trigger (unread emails)
     ↓
-Extract Territory Check Info (AI)
+Extract Fields (Code Node)
+    ├─ Network Detection (IFPG, FranServe, FBA, TYN, Direct)
+    ├─ Consultant extraction (name, email, phone, company)
+    ├─ Prospect extraction (name, email, city, state, zip)
+    ├─ Territory extraction (network-specific patterns)
+    ├─ Date extraction (from forwarded messages)
+    └─ Validation (returns allFieldsValid, missingFields)
     ↓
-Is Territory Check? (If node)
-    ↓ (TRUE)
-Find Consultant in AC
+Is Territory Check? (If node - checks is_territory_check)
+    ↓ (NO) → STOP
+    ↓ (YES)
+Find Consultant in ActiveCampaign (by email)
     ↓
 Consultant Exists? (If node)
-    ↓                        ↓
-(EXISTS)                (NEW)
-    ↓                        ↓
-    |                   Create Consultant
-    |                        ↓
-    |                   Add to Franchise Consultant List
-    |                        ↓
-    |                   Add Consultant Tag
-    |                        ↓
-    |                   Add Territory Check Tag
-    |                        ↓
-    └────────────────────────┘
-                ↓
-    Update Territory Check Fields
-                ↓
-    Lookup Territory in Airtable
-                ↓
-    Generate Response (Code)
-                ↓
-    Send Reply Email
-                ↓
-    Log to Airtable
-                ↓
-    Label Email (Processed-Yes/No)
+    ├─(NO - NEW)           ├─(YES - EXISTS)
+    │   ↓                  │    ↓
+    │   Create Contact     │    [Skip to update]
+    │   ↓                  │
+    │   Add to Lists       │
+    │   (39 & 40)          │
+    │   ↓                  │
+    └────┬─────────────────┘
+         ↓
+    Update Territory Fields
+    ├─ Field 178 (Territory Checks - history with date)
+    ├─ Field 180 (Current Territory Check - territory only)
+    └─ Create Note (same format as field 178)
+    ↓
+    Add Tags (optional)
+    ↓
+    Mark Email as Read (optional)
+    ↓
+    [Optional Future Steps]
+    ├─ Territory lookup (Airtable)
+    ├─ Send confirmation email
+    └─ Log to Airtable
 ```
+
+**Key Decision Points:**
+- **Is Territory Check?**: Routes territory emails to processing, others stop
+- **Consultant Exists?**: Branches to create new consultant or skip creation
+- **Validation**: Extract Fields returns validation status for monitoring
 
 ---
 
-**Version:** 1.0
-**Created:** 2025-11-03
-**n8n Version:** 1.117.3
+## Key Documentation References
+
+- **`/specs/QUICK-START.md`** - Quick resume guide for continuing work on the workflow
+- **`/specs/RULES.md`** - Email parsing rules, patterns, and network-specific extraction logic
+- **`/specs/ACTIVECAMPAIGN-FIELD-GUIDE.md`** - Complete guide for ActiveCampaign field access and updates
+- **`/specs/LESSONS-LEARNED.md`** - All issues encountered, solutions, and important learnings
+- **`/specs/MARK-EMAIL-READ-AND-ADD-TAG.md`** - Guide for marking emails and adding contact tags
+- **`/docs/javascript-for-code-node.js`** - The complete extraction code used in the workflow
+- **`/docs/Franchise Territory Checks - Working.json`** - The current workflow definition
+
+---
+
+**Version:** 2.0 (Updated for Code Node extraction)
+**Last Updated:** 2025-11-13
+**Status:** ✅ All known issues resolved, extraction fixed for ZIP codes and special characters

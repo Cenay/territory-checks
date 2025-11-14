@@ -1,0 +1,594 @@
+{
+  "name": "Franchise Territory Checks - Working",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {
+          "readStatus": "unread"
+        },
+        "options": {}
+      },
+      "id": "2cc3f72f-5a01-411f-ba8b-7926de1ac270",
+      "name": "-> Territory Checks",
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1360,
+        320
+      ],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w4vtE8fEEGHrj6S2",
+          "name": "Gmail (FranchiseTRFA)"
+        }
+      },
+      "notes": "Monitors Gmail for new unread emails matching franchise inquiry keywords in subject line"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Enhanced Email Parser for Territory Check Workflow\n// Handles 5 network formats: Direct Forms, IFPG, FranServe, FBA, TYN\n// Version: 2.1 - Fixed prospect name extraction (&) and territory ZIP code patterns\n\nconst emailBody = $input.item.json.text || $input.item.json.textPlain || $input.item.json.textHtml || '';\nconst emailSubject = $input.item.json.subject || '';\nconst emailHeaders = $input.item.json.headers || {};\nconst fullText = emailSubject + '\\n' + emailBody;\n\n// Get Reply-To for broker email (common in automated systems)\n// For forwarded emails, extract from the forwarded message section in the body\nlet replyToEmail = null;\n\nif (emailBody) {\n  // First, try to extract from forwarded message headers in body (common in IFPG forwarded emails)\n  // Pattern matches: \"Reply-To: email@domain.com\" or \"Reply-To:\\nemail@domain.com\"\n  // Use word boundary or whitespace/newline to stop at the end of the email\n  const replyToBodyMatch = emailBody.match(/Reply-To[:\\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})(?:\\s|$|\\n|To:|From:)/i);\n  if (replyToBodyMatch && replyToBodyMatch[1]) {\n    replyToEmail = replyToBodyMatch[1].trim();\n    // Exclude forwarding account emails\n    if (replyToEmail.includes('franchise@therealfoodacademy.com') ||\n        replyToEmail.includes('franchisetrfa@gmail.com')) {\n      replyToEmail = null;\n    }\n  }\n}\n\n// Fallback to email headers if not found in body (for non-forwarded emails)\nif (!replyToEmail) {\n  let replyToHeader = emailHeaders['reply-to'] || emailHeaders['Reply-To'] || '';\n  if (replyToHeader) {\n    const replyToMatch = replyToHeader.match(/<([^>]+)>/);\n    replyToEmail = replyToMatch ? replyToMatch[1] : replyToHeader.trim();\n    // Exclude forwarding account emails\n    if (replyToEmail && (replyToEmail.includes('franchise@therealfoodacademy.com') ||\n        replyToEmail.includes('franchisetrfa@gmail.com'))) {\n      replyToEmail = null;\n    }\n  }\n}\n\n// Extract date from forwarded message section for use in Territory Checks field\n// Format: \"Date:Mon, 03 Nov 2025 20:52:26 +0000\" (no space after colon) or \"Date: Mon, 10 Nov 2025 14:56:03 +0000\"\nlet originalEmailDate = null;\nlet formattedTerritoryCheckDate = null;\n\nif (emailBody) {\n  // Try to extract date from forwarded message section\n  // Pattern matches various formats:\n  // - \"Date:Mon, 03 Nov 2025 20:52:26 +0000\" (no space after colon) - PRIMARY FORMAT\n  // - \"Date: Mon, 10 Nov 2025 14:56:03 +0000\" (space after colon)\n  // - \"AcademyDate: Mon, 10 Nov 2025 14:56:03 +0000\" (attached to previous word)\n  const datePatterns = [\n    // Pattern 1: \"Date:\" followed by optional whitespace, then day name - handles both \"Date:Mon\" and \"Date: Mon\"\n    /Date:\\s*([A-Za-z]{3},\\s+\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\s+[+-]\\d{4})/i,\n    // Pattern 2: Date attached to previous word (like \"AcademyDate:\")\n    /\\w+Date:\\s*([A-Za-z]{3},\\s+\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4}\\s+\\d{2}:\\d{2}:\\d{2}\\s+[+-]\\d{4})/i\n  ];\n\n  let dateMatch = null;\n  for (const pattern of datePatterns) {\n    dateMatch = emailBody.match(pattern);\n    if (dateMatch && dateMatch[1]) {\n      break;\n    }\n  }\n\n  if (dateMatch && dateMatch[1]) {\n    try {\n      // Parse the date string (format: \"Mon, 03 Nov 2025 20:52:26 +0000\")\n      const dateStr = dateMatch[1].trim();\n      const parsedDate = new Date(dateStr);\n\n      // Check if date is valid\n      if (!isNaN(parsedDate.getTime())) {\n        originalEmailDate = dateStr;\n\n        // Format as MM/dd/yyyy for Territory Checks field\n        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');\n        const day = String(parsedDate.getDate()).padStart(2, '0');\n        const year = parsedDate.getFullYear();\n        formattedTerritoryCheckDate = `${month}/${day}/${year}`;\n      }\n    } catch (e) {\n      // If parsing fails, leave as null\n      originalEmailDate = null;\n      formattedTerritoryCheckDate = null;\n    }\n  }\n}\n\n// Helper function to extract field with multiple patterns\nfunction extractField(text, patterns, options = {}) {\n  const { returnNull = true, trim = true } = options;\n\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) {\n      const value = trim ? match[1].trim() : match[1];\n      if (value.length > 0) {\n        return value;\n      }\n    }\n  }\n  return returnNull ? null : '';\n}\n\n// Extract email addresses from body text (not headers)\nfunction extractEmailFromBody(text, label) {\n  // Only extract if explicitly labeled\n  const patterns = [\n    new RegExp(`${label}[:\\\\s]+([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,})`, 'i'),\n    new RegExp(`${label}[:\\\\s]+<([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\\\.[a-zA-Z]{2,})>`, 'i')\n  ];\n\n  for (const pattern of patterns) {\n    const match = text.match(pattern);\n    if (match && match[1]) {\n      const email = match[1].trim();\n      // Exclude forwarding account emails\n      if (!email.includes('franchise@therealfoodacademy.com') &&\n          !email.includes('franchisetrfa@gmail.com')) {\n        return email;\n      }\n    }\n  }\n  return null;\n}\n\n// ============================================================================\n// NETWORK IDENTIFICATION\n// ============================================================================\nlet network = 'Unknown';\n\nif (fullText.match(/fbamembers\\.com|FBA Broker|Broker's Information:/i)) {\n  network = 'FBA';\n} else if (fullText.match(/ifpg\\.org|IFPG Member|IFPG Inbox/i)) {\n  network = 'IFPG';\n} else if (fullText.match(/franserve|FranServe Consultant/i)) {\n  network = 'FranServe';\n} else if (fullText.match(/theyounetwork\\.com|TYN/i)) {\n  network = 'TYN';\n} else if (fullText.match(/First Name\\*:|Last Name\\*:|forms? completed at/i)) {\n  network = 'Direct';\n}\n\n// ============================================================================\n// PROSPECT INFORMATION EXTRACTION\n// ============================================================================\n\nlet prospectFirstName = null;\nlet prospectLastName = null;\nlet prospectName = null;\nlet prospectEmail = null;\nlet prospectCity = null;\nlet prospectState = null;\nlet prospectZip = null;\n\n// Prospect Email - ONLY from explicit body labels\nprospectEmail = extractEmailFromBody(emailBody, 'Prospect Email') ||\n                extractEmailFromBody(emailBody, 'Email');\n\nif (network === 'FBA') {\n  // FBA Format: Client's Information section with First/Last Name\n  prospectFirstName = extractField(fullText, [\n    /First Name[:\\s]+([A-Za-z]+)/i\n  ]);\n  prospectLastName = extractField(fullText, [\n    /Last Name[:\\s]+([A-Za-z]+)/i\n  ]);\n  if (prospectFirstName && prospectLastName) {\n    prospectName = `${prospectFirstName} ${prospectLastName}`;\n  }\n\n  prospectCity = extractField(fullText, [\n    /City[:\\s]+([A-Za-z\\s]+?)(?:\\n|,|$)/i\n  ]);\n  prospectState = extractField(fullText, [\n    /State[:\\s]+([A-Z]{2})\\b/i\n  ]);\n  prospectZip = extractField(fullText, [\n    /Zip[:\\s]+(\\d{5})/i\n  ]);\n\n} else if (network === 'FranServe') {\n  // FranServe Format: Prospect: Name followed by Prospect Email:\n  prospectName = extractField(fullText, [\n    /Prospect[:\\s]+([A-Za-z\\s&]+?)(?:\\n|$)/i\n  ]);\n\n  // City/State from \"Desired Territory\" or address info\n  const territory = extractField(fullText, [\n    /Desired Territory[:\\s]+([^\\n]+)/i\n  ]);\n  if (territory) {\n    const cityStateMatch = territory.match(/([A-Za-z\\s]+),\\s*([A-Z]{2})/);\n    if (cityStateMatch) {\n      prospectCity = cityStateMatch[1].trim();\n      prospectState = cityStateMatch[2].trim();\n    }\n  }\n\n} else if (network === 'IFPG') {\n  // IFPG Format: Candidate: Name (FIXED: Added & to support names like \"Micheal & Vicki R\")\n  prospectName = extractField(fullText, [\n    /Candidate[:\\s]+([A-Za-z\\s&]+?)(?:\\n|$)/i\n  ]);\n\n  // Extract city/state from \"Interested in...\" or territory description\n  const territoryMatch = fullText.match(/Interested in ([^(]+?)(?:Area|area)?\\s*\\(Lives in zip code (\\d{5})\\)/i);\n  if (territoryMatch) {\n    prospectCity = territoryMatch[1].trim().replace(/,.*$/, '').trim();\n    prospectZip = territoryMatch[2];\n  } else {\n    const cityStateMatch = fullText.match(/([A-Za-z\\s]+),\\s*([A-Z]{2})\\s+\\d{5}/);\n    if (cityStateMatch) {\n      prospectCity = cityStateMatch[1].trim();\n      prospectState = cityStateMatch[2].trim();\n    }\n  }\n\n} else if (network === 'TYN') {\n  // TYN Format: \"client living in [City], [State]\" or mentions names\n  const clientMatch = fullText.match(/client living in ([^,]+),\\s*([A-Z]{2})/i);\n  if (clientMatch) {\n    prospectCity = clientMatch[1].trim();\n    prospectState = clientMatch[2].trim();\n  }\n\n  // Try to extract prospect name from \"Please check your files/records for [Name]\"\n  // Pattern handles: \"check your records for Brandt Schmidt and Meredith Watt and register\"\n  prospectName = extractField(fullText, [\n    /check your (?:files|records) for ([A-Za-z\\s&]+?)\\s+and register/i,\n    /check your (?:files|records) for ([A-Za-z\\s&]+?)(?:\\s+and|\\s+register|$)/i,\n    /client[:\\s]+([A-Za-z\\s&]+?)(?:\\n|$)/i\n  ]);\n\n} else if (network === 'Direct') {\n  // Direct Form: First Name*, Last Name*, Email:, City:, State:\n  prospectFirstName = extractField(fullText, [\n    /First Name\\*?[:\\s]+([A-Za-z]+)/i\n  ]);\n  prospectLastName = extractField(fullText, [\n    /Last Name\\*?[:\\s]+([A-Za-z]+)/i\n  ]);\n  if (prospectFirstName && prospectLastName) {\n    prospectName = `${prospectFirstName} ${prospectLastName}`;\n  }\n\n  prospectCity = extractField(fullText, [\n    /City[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  prospectState = extractField(fullText, [\n    /State[:\\s]+([A-Z]{2})/i\n  ]);\n}\n\n// ============================================================================\n// TERRITORY EXTRACTION\n// ============================================================================\n\nlet territoryRequested = null;\n\n// Network-specific territory extraction\nif (network === 'FBA') {\n  // FBA: Territory appears after \"buttons below\" and before \"Territory Notes\"\n  const fbaMatch = fullText.match(/buttons below\\.?\\s*\\n\\s*([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})/i);\n  if (fbaMatch) {\n    territoryRequested = fbaMatch[1].trim();\n  } else {\n    // Fallback: Look for City, ST ZIP pattern near Client's Information\n    const fallbackMatch = emailBody.match(/([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})\\s*(?:\\n|$)/);\n    if (fallbackMatch) {\n      territoryRequested = fallbackMatch[1].trim();\n    }\n  }\n} else if (network === 'FranServe') {\n  // FranServe: \"Desired Territory: ...\"\n  territoryRequested = extractField(fullText, [\n    /Desired Territory[:\\s]+([^\\n]+)/i\n  ]);\n} else if (network === 'IFPG') {\n  // IFPG: Multiple territory formats possible\n  // Pattern 1: \"Interested in ... Area\" format\n  const interestedMatch = fullText.match(/Interested in ([^(]+?)(?:Area|area)?\\s*\\(Lives in zip code \\d{5}\\)/i);\n  if (interestedMatch) {\n    territoryRequested = interestedMatch[1].trim();\n  } else {\n    // Pattern 2: \"Prospect Name: [Name] -- Tcheck for: [Territory]\"\n    const tcheckMatch = fullText.match(/Tcheck for[:\\s]+([^(\\n]+?)(?:\\s*\\(zip|\\s*-\\s*if|\\n|CLICK|$)/i);\n    if (tcheckMatch) {\n      territoryRequested = tcheckMatch[1].trim();\n    } else {\n      // Pattern 3: Territory on line after \"Territory Check from [Name] for The Real Food Academy:\"\n      // This pattern handles the format: \"Territory Check from [Name] for The Real Food Academy:\\n\\n[Territory]\"\n      // IMPORTANT: Must have at least one newline after the colon to avoid capturing header text\n      // FIXED: Added \\d to capture ZIP codes like \"Greenville SC 29651\"\n      const territoryLineMatch = fullText.match(/Territory Check from [^:]+:\\s*\\n+\\s*([A-Za-z\\s,\\d]+?)(?:\\n|CLICK|$)/i);\n      if (territoryLineMatch) {\n        const captured = territoryLineMatch[1].trim();\n        // Make sure we didn't capture \"for The Real Food Academy\" or other unwanted text\n        // Also exclude any text that contains \"for The Real Food\" or \"IFPG Member\" as these are header text\n        if (captured &&\n            !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&\n            !captured.includes('for The Real Food') &&\n            captured.length > 2) {\n          territoryRequested = captured;\n        }\n      }\n\n      // Pattern 4: More specific pattern - only match if there's a clear territory pattern after the colon\n      // This pattern requires the territory to look like a location (contains comma or state abbreviation)\n      // FIXED: Added \\d to capture ZIP codes\n      if (!territoryRequested) {\n        const flexibleMatch = fullText.match(/Territory Check from [^:]+:\\s*\\n+\\s*([A-Za-z\\s,\\d]+(?:,\\s*[A-Z]{2})?[A-Za-z\\s,\\d]*?)(?:\\n|CLICK|$)/i);\n        if (flexibleMatch) {\n          const captured = flexibleMatch[1].trim();\n          // Strict validation: must not contain header keywords and must look like a location\n          if (captured &&\n              !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&\n              !captured.includes('for The Real Food') &&\n              (captured.includes(',') || captured.match(/\\b[A-Z]{2}\\b/)) && // Must contain comma or state abbreviation\n              captured.length > 2) {\n            territoryRequested = captured;\n          }\n        }\n      }\n\n      // Pattern 5: Fallback - Look for territory pattern that appears after \"for The Real Food Academy:\"\n      // This is the most common IFPG format: \"Territory Check from [Name] for The Real Food Academy:\\n\\n[Territory]\"\n      // FIXED: Added \\d to capture ZIP codes like \"Greenville SC 29651\"\n      if (!territoryRequested) {\n        const academyMatch = fullText.match(/for The Real Food Academy:\\s*\\n+\\s*([A-Za-z\\s,\\d]+(?:,\\s*[A-Z]{2})?[A-Za-z\\s,\\d]*?)(?:\\n|CLICK|$)/i);\n        if (academyMatch) {\n          const captured = academyMatch[1].trim();\n          // Must look like a location (contains comma or state abbreviation) and not be header text\n          if (captured &&\n              !captured.match(/^(Territory Check|IFPG Member|Prospect Name|CLICK|http|mailbox)/i) &&\n              (captured.includes(',') || captured.match(/\\b[A-Z]{2}\\b/)) &&\n              captured.length > 2) {\n            territoryRequested = captured;\n          }\n        }\n      }\n    }\n  }\n} else if (network === 'TYN') {\n  // TYN: Extract from subject line or market description\n  const tynMatch = emailSubject.match(/Territory Check\\s*[–-]\\s*([^-]+?)\\s*-\\s*The Real Food Academy/i);\n  if (tynMatch) {\n    territoryRequested = tynMatch[1].trim();\n  } else {\n    // Fallback: look for market in body\n    territoryRequested = extractField(fullText, [\n      /in and around the ([^\\n]+?) market/i,\n      /living in ([^,]+,\\s*[A-Z]{2})/i\n    ]);\n  }\n} else if (network === 'Direct') {\n  // Direct: Use City, State from form\n  if (prospectCity && prospectState) {\n    territoryRequested = `${prospectCity}, ${prospectState}`;\n  }\n} else {\n  // Generic fallback patterns\n  const territoryPatterns = [\n    /Desired Territory[:\\s]+([^\\n]+)/i,\n    /Interested in ([^\\n]+?)(?:Area|area|market)/i,\n    /([A-Za-z\\s]+,\\s*[A-Z]{2}\\s+\\d{5})/,  // City, ST 12345 format\n    /([A-Za-z\\s]+,\\s*[A-Z]{2})(?:\\s+area|\\s+market)?/i\n  ];\n  territoryRequested = extractField(fullText, territoryPatterns);\n}\n\n// If we still don't have territory but have city/state, construct it\nif (!territoryRequested && prospectCity && prospectState) {\n  territoryRequested = prospectZip\n    ? `${prospectCity}, ${prospectState} ${prospectZip}`\n    : `${prospectCity}, ${prospectState}`;\n}\n\n// ============================================================================\n// BROKER/CONSULTANT INFORMATION EXTRACTION\n// ============================================================================\n\nlet brokerName = null;\nlet brokerEmail = null;\nlet brokerPhone = null;\nlet brokerCompany = null;\n\nif (network === 'FBA') {\n  brokerName = extractField(fullText, [\n    /Broker's Name[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  brokerEmail = extractEmailFromBody(emailBody, \"Broker's Email\");\n  brokerPhone = extractField(fullText, [\n    /Broker's Phone Number[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = extractField(fullText, [\n    /Broker's Company[:\\s]+([^\\n]+)/i\n  ]);\n\n} else if (network === 'FranServe') {\n  brokerName = extractField(fullText, [\n    /Referring Consultant[:\\s]+([A-Za-z\\s]+?)(?:\\n|$)/i\n  ]);\n  brokerEmail = extractEmailFromBody(emailBody, 'Consultant Email');\n  brokerPhone = extractField(fullText, [\n    /Consultant Phone[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = 'FranServe';\n\n} else if (network === 'IFPG') {\n  // Fix: Use non-greedy match and stop before \"for\" to avoid capturing \"for Multiple Franchises\"\n  const memberMatch = fullText.match(/Territory Check from IFPG Member ([A-Za-z\\s]+?)(?:\\s+for|$)/i);\n  if (memberMatch) {\n    brokerName = memberMatch[1].trim();\n  }\n\n  // IFPG uses Reply-To for broker email\n  if (replyToEmail && replyToEmail.includes('@')) {\n    brokerEmail = replyToEmail;\n  }\n\n  brokerPhone = extractField(fullText, [\n    /Phone[:\\s]+([\\d\\s()+-]+?)(?:\\n|$)/i\n  ]);\n  brokerCompany = 'IFPG';\n\n} else if (network === 'TYN') {\n  // TYN broker info from signature or \"register to [Name] at TYN\"\n  const signatureMatch = fullText.match(/Thanks,\\s+([A-Za-z\\s]+)(?:\\n|$)/i);\n  if (signatureMatch) {\n    brokerName = signatureMatch[1].trim();\n  } else {\n    // Fallback: extract from \"register to [Name] at TYN\"\n    const registerMatch = fullText.match(/register to ([A-Za-z\\s]+)\\s+at TYN/i);\n    if (registerMatch) {\n      brokerName = registerMatch[1].trim();\n    }\n  }\n\n  // TYN uses Reply-To or From email from forwarded message\n  if (replyToEmail && replyToEmail.includes('@')) {\n    brokerEmail = replyToEmail;\n  } else {\n    // Fallback: extract From email from forwarded message section\n    const fromMatch = emailBody.match(/From[:\\s]+[^<]*<([^>]+)>/i);\n    if (fromMatch && fromMatch[1]) {\n      const email = fromMatch[1].trim();\n      if (!email.includes('franchise@therealfoodacademy.com') &&\n          !email.includes('franchisetrfa@gmail.com')) {\n        brokerEmail = email;\n      }\n    }\n  }\n\n  brokerCompany = 'The You Network';\n\n} else if (network === 'Direct') {\n  // No broker for direct inquiries\n  brokerName = 'Direct Inquiry';\n  brokerCompany = 'Website';\n}\n\n// ==================================================================\n// VALIDATION AND OUTPUT\n// ==================================================================\n\nconst requiredFields = {\n  network,\n  territoryRequested,\n  prospectName\n};\n\nconst missingFields = [];\nfor (const [field, value] of Object.entries(requiredFields)) {\n  if (!value || value.length < 2) {\n    missingFields.push(field);\n  }\n}\n\nconst allFieldsValid = missingFields.length === 0;\n\n// Determine if this is a territory check\nconst isTerritoryCheck = fullText.match(/territory check/i) !== null;\n\n// If prospect_name exists but first/last names don't, split the name\nif (prospectName && !prospectFirstName && !prospectLastName) {\n  const nameParts = prospectName.trim().split(/\\s+/);\n  if (nameParts.length > 0) {\n    prospectFirstName = nameParts[0];\n    if (nameParts.length > 1) {\n      prospectLastName = nameParts.slice(1).join(' ');\n    }\n  }\n}\n\nreturn {\n  json: {\n    // Original email data\n    emailId: $input.item.json.id,\n    emailSubject: emailSubject,\n    emailBody: emailBody.substring(0, 5000), // Truncate for storage\n    emailFrom: $input.item.json.from,\n    emailDate: $input.item.json.date,\n\n    // Classification\n    network: network,\n    is_territory_check: isTerritoryCheck,\n\n    // Prospect information\n    prospect_first_name: prospectFirstName,\n    prospect_last_name: prospectLastName,\n    prospect_name: prospectName,\n    prospect_email: prospectEmail, // Will be null if not explicitly in body\n    prospect_city: prospectCity,\n    prospect_state: prospectState,\n    prospect_zip: prospectZip,\n\n    // Territory\n    territory_requested: territoryRequested,\n\n    // Date information for Territory Checks field\n    original_email_date: originalEmailDate, // Original date string from forwarded message\n    territory_check_date: formattedTerritoryCheckDate, // Formatted as MM/dd/yyyy for ActiveCampaign field 178\n\n    // Broker/Consultant information\n    consultant_first_name: brokerName ? brokerName.split(' ')[0] : null,\n    consultant_last_name: brokerName && brokerName.split(' ').length > 1\n      ? brokerName.split(' ').slice(1).join(' ')\n      : null,\n    consultant_name: brokerName,\n    consultant_email: brokerEmail,\n    consultant_phone: brokerPhone,\n    consultant_company: brokerCompany,\n\n    // Validation status\n    allFieldsValid: allFieldsValid,\n    missingFields: missingFields,\n    errorNotes: missingFields.length > 0\n      ? `Missing or ambiguous fields: ${missingFields.join(', ')}`\n      : null,\n\n    // Debug info\n    extraction_notes: {\n      prospect_email_found: prospectEmail !== null,\n      prospect_email_source: prospectEmail ? 'body_label' : 'not_found',\n      network_identified: network,\n      reply_to_available: replyToEmail !== '',\n      date_extracted: formattedTerritoryCheckDate !== null,\n      original_date_string: originalEmailDate\n    }\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1184,
+        320
+      ],
+      "id": "17ef81c1-df05-40ac-afa6-f6e4c681a83a",
+      "name": "Extract Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "7b482c9f-0501-4f22-a96d-95c274656182",
+              "leftValue": "={{ $json.is_territory_check }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1024,
+        320
+      ],
+      "id": "f29bcc42-7241-4588-b175-15242ab8ad99",
+      "name": "Is Territory Check"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 5,
+        "additionalFields": {
+          "email": "={{ $json.consultant_email }}"
+        }
+      },
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        400
+      ],
+      "id": "cf984937-cba0-46f6-8d6c-397979ac3512",
+      "name": "Find Consultant",
+      "alwaysOutputData": true,
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dd803288-1f8b-42af-b7ff-6312fa2aecfb",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -608,
+        192
+      ],
+      "id": "5257ff4e-b65c-4ab5-809a-5ed0d913f34c",
+      "name": "Consultant Exists"
+    },
+    {
+      "parameters": {
+        "url": "=https://trfa.api-us1.com/api/3/contacts/{{ $json.id }}/fieldValues",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "activeCampaignApi",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -320,
+        32
+      ],
+      "id": "e881dfa4-e801-49b7-b732-c3149dcc0f4f",
+      "name": "Get Custom Fields",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "contactId": "={{ $json.fieldValues[0].contact }}",
+        "updateFields": {
+          "fieldValues": {
+            "property": [
+              {
+                "field": "=178",
+                "value": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}\n{{ $('Get Custom Fields').item.json.fieldValues.find(item => item.field === \"178\")?.value || '' }}"
+              },
+              {
+                "field": "=180",
+                "value": "={{ $('Extract Fields').item.json.territory_requested }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        -64,
+        32
+      ],
+      "id": "1fab1ea1-aa9d-4e7f-8d4c-4d0961b90c96",
+      "name": "Update a contact",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "email": "={{ $('Extract Fields').item.json.consultant_email }}",
+        "additionalFields": {
+          "fieldValues": {
+            "property": [
+              {
+                "field": "179",
+                "value": "={{ $('Extract Fields').item.json.consultant_company }}"
+              },
+              {
+                "field": "45",
+                "value": "Consultant"
+              }
+            ]
+          },
+          "firstName": "={{ $('Extract Fields').item.json.consultant_first_name }}",
+          "lastName": "={{ $('Extract Fields').item.json.consultant_last_name }} - {{ $('Extract Fields').item.json.extraction_notes.network_identified }}",
+          "phone": "={{ $('Extract Fields').item.json.consultant_phone }}"
+        }
+      },
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        384
+      ],
+      "id": "002b1583-c6e9-4b07-aed5-46f52c86fa42",
+      "name": "Create a contact",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "contactList",
+        "listId": 39,
+        "contactId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        -144,
+        384
+      ],
+      "id": "a8aefad3-ee1a-4b0b-a2f4-5f76cf5fe676",
+      "name": "Add a contact to a list",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "contactId": "={{ $('Create a contact').item.json.id }}",
+        "updateFields": {
+          "fieldValues": {
+            "property": [
+              {
+                "field": "=178",
+                "value": "={{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}"
+              },
+              {
+                "field": "=180",
+                "value": "={{ $('Extract Fields').item.json.territory_requested }}"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.activeCampaign",
+      "typeVersion": 1,
+      "position": [
+        48,
+        384
+      ],
+      "id": "67cfad84-62e2-4379-ac94-0f391804895f",
+      "name": "Update Custom Fields",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://trfa.api-us1.com/api/3/notes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "activeCampaignApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=   {\n     \"note\": {\n       \"note\": \"TERRITORY CHECK: {{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}\",\n       \"reltype\": \"Subscriber\",\n       \"relid\": \"{{ String( $('Create a contact').item.json.id ) }}\"\n     }\n   }",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        384
+      ],
+      "id": "bd24e525-b464-4434-9906-45f78f7afe44",
+      "name": "Add Note to Contact",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://trfa.api-us1.com/api/3/notes",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "activeCampaignApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=   {\n     \"note\": {\n       \"note\": \"TERRITORY CHECK: {{ $('Extract Fields').item.json.territory_check_date || $now.toFormat('MM/dd/yyyy') }} {{ $('Extract Fields').item.json.territory_requested }}\",\n       \"reltype\": \"Subscriber\",\n       \"relid\": \"{{ String( $('Get Custom Fields').item.json.fieldValues[0].contact) }}\"\n     }\n   }",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        32
+      ],
+      "id": "8a20d617-65e0-4aa3-a87b-1315c735d44b",
+      "name": "Add Territory Chk Note",
+      "credentials": {
+        "activeCampaignApi": {
+          "id": "3gDvz1re0qYvBjM5",
+          "name": "ActiveCampaign (API)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $('-> Territory Checks').item.json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        512,
+        208
+      ],
+      "id": "b718c5f6-c476-4c60-9244-95973be7d7cf",
+      "name": "Mark Read",
+      "webhookId": "8004e6e2-5dce-4d55-988d-b6cd428ad4df",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w4vtE8fEEGHrj6S2",
+          "name": "Gmail (FranchiseTRFA)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addLabels",
+        "messageId": "={{ $('-> Territory Checks').item.json.id }}",
+        "labelIds": [
+          "Label_6542614019958416861"
+        ]
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        688,
+        208
+      ],
+      "id": "2860e7c6-9e64-4a55-b5ab-3a2490d386ba",
+      "name": "Add Label",
+      "webhookId": "ce3f240d-22c2-4234-9209-5532f29b8576",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "w4vtE8fEEGHrj6S2",
+          "name": "Gmail (FranchiseTRFA)"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "-> Territory Checks": {
+      "main": [
+        [
+          {
+            "node": "Extract Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Fields": {
+      "main": [
+        [
+          {
+            "node": "Is Territory Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Territory Check": {
+      "main": [
+        [
+          {
+            "node": "Find Consultant",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Find Consultant": {
+      "main": [
+        [
+          {
+            "node": "Consultant Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultant Exists": {
+      "main": [
+        [
+          {
+            "node": "Get Custom Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create a contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Custom Fields": {
+      "main": [
+        [
+          {
+            "node": "Update a contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create a contact": {
+      "main": [
+        [
+          {
+            "node": "Add a contact to a list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add a contact to a list": {
+      "main": [
+        [
+          {
+            "node": "Update Custom Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Custom Fields": {
+      "main": [
+        [
+          {
+            "node": "Add Note to Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update a contact": {
+      "main": [
+        [
+          {
+            "node": "Add Territory Chk Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Territory Chk Note": {
+      "main": [
+        [
+          {
+            "node": "Mark Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Note to Contact": {
+      "main": [
+        [
+          {
+            "node": "Mark Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Read": {
+      "main": [
+        [
+          {
+            "node": "Add Label",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8b266362-49bf-4254-a2af-118241bf0c99",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "4a3618b1d61ff75e14c32f7cb70d6f38993326100da48466d26b149497c437dd"
+  },
+  "id": "gZHoQcN5bTwijo4a",
+  "tags": [
+    {
+      "updatedAt": "2025-05-21T00:25:57.786Z",
+      "createdAt": "2025-05-21T00:25:57.786Z",
+      "id": "5hcZ7EUmra3ehA5v",
+      "name": "TRFA"
+    }
+  ]
+}
