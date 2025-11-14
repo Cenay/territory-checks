@@ -19,7 +19,7 @@ if (emailBody) {
   if (replyToBodyMatch && replyToBodyMatch[1]) {
     replyToEmail = replyToBodyMatch[1].trim();
     // Exclude forwarding account emails
-    if (replyToEmail.includes('franchise@therealfoodacademy.com') || 
+    if (replyToEmail.includes('franchise@therealfoodacademy.com') ||
         replyToEmail.includes('franchisetrfa@gmail.com')) {
       replyToEmail = null;
     }
@@ -33,7 +33,7 @@ if (!replyToEmail) {
     const replyToMatch = replyToHeader.match(/<([^>]+)>/);
     replyToEmail = replyToMatch ? replyToMatch[1] : replyToHeader.trim();
     // Exclude forwarding account emails
-    if (replyToEmail && (replyToEmail.includes('franchise@therealfoodacademy.com') || 
+    if (replyToEmail && (replyToEmail.includes('franchise@therealfoodacademy.com') ||
         replyToEmail.includes('franchisetrfa@gmail.com'))) {
       replyToEmail = null;
     }
@@ -57,7 +57,7 @@ if (emailBody) {
     // Pattern 2: Date attached to previous word (like "AcademyDate:")
     /\w+Date:\s*([A-Za-z]{3},\s+\d{1,2}\s+[A-Za-z]{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\s+[+-]\d{4})/i
   ];
-  
+
   let dateMatch = null;
   for (const pattern of datePatterns) {
     dateMatch = emailBody.match(pattern);
@@ -65,17 +65,17 @@ if (emailBody) {
       break;
     }
   }
-  
+
   if (dateMatch && dateMatch[1]) {
     try {
       // Parse the date string (format: "Mon, 03 Nov 2025 20:52:26 +0000")
       const dateStr = dateMatch[1].trim();
       const parsedDate = new Date(dateStr);
-      
+
       // Check if date is valid
       if (!isNaN(parsedDate.getTime())) {
         originalEmailDate = dateStr;
-        
+
         // Format as MM/dd/yyyy for Territory Checks field
         const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
         const day = String(parsedDate.getDate()).padStart(2, '0');
@@ -301,14 +301,14 @@ if (network === 'FBA') {
         const captured = territoryLineMatch[1].trim();
         // Make sure we didn't capture "for The Real Food Academy" or other unwanted text
         // Also exclude any text that contains "for The Real Food" or "IFPG Member" as these are header text
-        if (captured && 
+        if (captured &&
             !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&
             !captured.includes('for The Real Food') &&
             captured.length > 2) {
           territoryRequested = captured;
         }
       }
-      
+
       // Pattern 4: More specific pattern - only match if there's a clear territory pattern after the colon
       // This pattern requires the territory to look like a location (contains comma or state abbreviation)
       // FIXED: Added \d to capture ZIP codes
@@ -317,7 +317,7 @@ if (network === 'FBA') {
         if (flexibleMatch) {
           const captured = flexibleMatch[1].trim();
           // Strict validation: must not contain header keywords and must look like a location
-          if (captured && 
+          if (captured &&
               !captured.match(/^(for The Real Food Academy|Prospect Name|CLICK|http|mailbox|IFPG Member|Territory Check)/i) &&
               !captured.includes('for The Real Food') &&
               (captured.includes(',') || captured.match(/\b[A-Z]{2}\b/)) && // Must contain comma or state abbreviation
@@ -326,7 +326,7 @@ if (network === 'FBA') {
           }
         }
       }
-      
+
       // Pattern 5: Fallback - Look for territory pattern that appears after "for The Real Food Academy:"
       // This is the most common IFPG format: "Territory Check from [Name] for The Real Food Academy:\n\n[Territory]"
       // FIXED: Added \d to capture ZIP codes like "Greenville SC 29651"
@@ -335,7 +335,7 @@ if (network === 'FBA') {
         if (academyMatch) {
           const captured = academyMatch[1].trim();
           // Must look like a location (contains comma or state abbreviation) and not be header text
-          if (captured && 
+          if (captured &&
               !captured.match(/^(Territory Check|IFPG Member|Prospect Name|CLICK|http|mailbox)/i) &&
               (captured.includes(',') || captured.match(/\b[A-Z]{2}\b/)) &&
               captured.length > 2) {
@@ -449,7 +449,7 @@ if (network === 'FBA') {
     const fromMatch = emailBody.match(/From[:\s]+[^<]*<([^>]+)>/i);
     if (fromMatch && fromMatch[1]) {
       const email = fromMatch[1].trim();
-      if (!email.includes('franchise@therealfoodacademy.com') && 
+      if (!email.includes('franchise@therealfoodacademy.com') &&
           !email.includes('franchisetrfa@gmail.com')) {
         brokerEmail = email;
       }
@@ -521,7 +521,7 @@ return {
 
     // Territory
     territory_requested: territoryRequested,
-    
+
     // Date information for Territory Checks field
     original_email_date: originalEmailDate, // Original date string from forwarded message
     territory_check_date: formattedTerritoryCheckDate, // Formatted as MM/dd/yyyy for ActiveCampaign field 178
